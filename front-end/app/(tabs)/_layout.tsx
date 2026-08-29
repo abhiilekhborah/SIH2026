@@ -22,20 +22,20 @@ export default function _layout(){
         <Ionicons name={focused ? "notifications" : "notifications-outline"} size={size} color={color} />
       ),
     }}/>
-    <Tabs.Screen name = "search" options = {{
-      title : "Search",
+    <Tabs.Screen name = "emergency" options = {{
+      title : "Emergency",
       tabBarIcon: ({ color, size, focused }) => (
         <Ionicons name={focused ? "map" : "map-outline"} size={size} color={color} />
       ),
     }}/>
-    <Tabs.Screen name = "emergency" options = {{
-      title : "Emergency",
+    <Tabs.Screen name = "history" options = {{
+      title : "History",
       tabBarIcon: ({ color, size, focused }) => (
         <Ionicons name={focused ? "document-text" : "document-text-outline"} size={size} color={color} />
       ),
     }}/>
-    <Tabs.Screen name = "history" options = {{
-      title : "History",
+    <Tabs.Screen name = "profile" options = {{
+      title : "Profile",
       tabBarIcon: ({ color, size, focused }) => (
         <Ionicons name={focused ? "settings" : "settings-outline"} size={size} color={color} />
       ),
