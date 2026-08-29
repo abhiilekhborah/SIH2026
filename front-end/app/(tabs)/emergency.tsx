@@ -1,4 +1,5 @@
 import { AppHeader } from '@/components/app-header';
+<<<<<<< HEAD
 import { SideMenu } from '@/components/side-menu';
 import { useUser } from '@clerk/expo';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -34,6 +35,16 @@ interface Hospital {
   latitude: number;
   longitude: number;
 }
+=======
+import { useSideMenu } from '@/components/side-menu-context';
+import React, { useState } from 'react';
+import { Alert, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+export default function Emergency() {
+  const { openMenu } = useSideMenu();
+  const [unreadNotifications, setUnreadNotifications] = useState(1);
+>>>>>>> a61a2324a2c91f6258a9d357f51537aa33d1b0ac
 
 interface LocationData {
   latitude: number;
@@ -137,6 +148,7 @@ function SOSButton({ onPress }: { onPress: () => void }) {
   }, []);
 
   return (
+<<<<<<< HEAD
     <Animated.View style={[sosStyles.wrapper, { transform: [{ scale: pulseAnim }] }]}>
       <Animated.View style={[sosStyles.glow, { opacity: glowAnim }]} />
       <TouchableOpacity
@@ -975,11 +987,18 @@ export default function Emergency() {
   return (
     <SafeAreaView style={mainStyles.safeArea} edges={['top', 'left', 'right']}>
       <SideMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+=======
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+>>>>>>> a61a2324a2c91f6258a9d357f51537aa33d1b0ac
       <AppHeader
         title="Emergency"
         showMenu={true}
         showNotification={true}
+<<<<<<< HEAD
         onPressMenu={() => setIsMenuOpen(true)}
+=======
+        onPressMenu={openMenu}
+>>>>>>> a61a2324a2c91f6258a9d357f51537aa33d1b0ac
         onPressNotification={handleOpenNotifications}
         badgeCount={0}
       />
