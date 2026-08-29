@@ -1,8 +1,16 @@
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Tabs } from "expo-router";
+import { SideMenu } from "@/components/side-menu";
+import { SideMenuContext } from "@/components/side-menu-context";
+import { useState } from "react";
 
-export default function _layout(){
-  return <Tabs
+export default function TabsLayout() {
+
+  const [isMenuOpen,setIsMenuOpen] = useState(false)
+  return( 
+    <SideMenuContext.Provider value = {{openMenu: () => setIsMenuOpen(true)}}>
+  
+  <Tabs
     screenOptions={{
       
       tabBarActiveTintColor: "#00F0FF",
@@ -41,5 +49,8 @@ export default function _layout(){
       ),
     }}/>
   </Tabs>
-
+  
+  <SideMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+  </SideMenuContext.Provider>
+  );
 }
