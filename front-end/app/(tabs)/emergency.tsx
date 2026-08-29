@@ -1,16 +1,12 @@
 import { AppHeader } from '@/components/app-header';
-import { SideMenu } from '@/components/side-menu';
+import { useSideMenu } from '@/components/side-menu-context';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Emergency() {
+  const { openMenu } = useSideMenu();
   const [unreadNotifications, setUnreadNotifications] = useState(1);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const handleOpenMenu = () => {
-    setIsMenuOpen(true);
-  };
 
   const handleOpenNotifications = () => {
     Alert.alert('Notifications', 'Emergency alerts & notifications');
@@ -21,12 +17,11 @@ export default function Emergency() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <SideMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
       <AppHeader
         title="Emergency"
         showMenu={true}
         showNotification={true}
-        onPressMenu={handleOpenMenu}
+        onPressMenu={openMenu}
         onPressNotification={handleOpenNotifications}
         badgeCount={unreadNotifications}
       />

@@ -1,5 +1,5 @@
 import { AppHeader } from '@/components/app-header';
-import { SideMenu } from '@/components/side-menu';
+import { useSideMenu } from '@/components/side-menu-context';
 import { useUser } from '@clerk/expo';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
@@ -16,16 +16,12 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Home() {
+  const { openMenu } = useSideMenu();
   const { user } = useUser();
   const [unreadNotifications, setUnreadNotifications] = useState(3);
   const [searchQuery, setSearchQuery] = useState('');
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const userName = user?.firstName || user?.fullName || 'User';
-
-  const handleOpenMenu = () => {
-    setIsMenuOpen(true);
-  };
 
   const handleOpenNotifications = () => {
     Alert.alert('Notifications', 'You have 3 new health updates');
@@ -36,15 +32,12 @@ export default function Home() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      {/* Side Menu Drawer */}
-      <SideMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
-
       {/* Header */}
       <AppHeader
         title="MediQuick"
         showMenu={true}
         showNotification={true}
-        onPressMenu={handleOpenMenu}
+        onPressMenu={openMenu}
         onPressNotification={handleOpenNotifications}
         badgeCount={unreadNotifications}
       />

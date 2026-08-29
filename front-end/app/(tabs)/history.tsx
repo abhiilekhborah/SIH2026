@@ -1,16 +1,12 @@
 import { AppHeader } from '@/components/app-header';
-import { SideMenu } from '@/components/side-menu';
+import { useSideMenu } from '@/components/side-menu-context';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function History() {
-  const [unreadNotifications, setUnreadNotifications] = useState(0);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const handleOpenMenu = () => {
-    setIsMenuOpen(true);
-  };
+  const { openMenu } = useSideMenu();
+  const [unreadNotifications] = useState(0);
 
   const handleOpenNotifications = () => {
     Alert.alert('Notifications', 'Medical history notifications');
@@ -18,12 +14,11 @@ export default function History() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <SideMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
       <AppHeader
         title="History"
         showMenu={true}
         showNotification={true}
-        onPressMenu={handleOpenMenu}
+        onPressMenu={openMenu}
         onPressNotification={handleOpenNotifications}
         badgeCount={unreadNotifications}
       />

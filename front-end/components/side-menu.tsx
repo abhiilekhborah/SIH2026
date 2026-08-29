@@ -61,7 +61,9 @@ export function SideMenu({ visible, onClose }: SideMenuProps) {
 
   const handleNavigate = (path: string) => {
     onClose();
-    router.push(path as any);
+    // navigate() reuses the screen if it is already in the stack; push() would
+    // stack a new copy every time the menu is used.
+    router.navigate(path as any);
   };
 
   const handleSignOut = async () => {
@@ -84,7 +86,7 @@ export function SideMenu({ visible, onClose }: SideMenuProps) {
         {/* Blurred Backdrop */}
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
           <BlurView
-            intensity={500}
+            intensity={100}
             tint="dark"
             style={StyleSheet.absoluteFill}
           />
