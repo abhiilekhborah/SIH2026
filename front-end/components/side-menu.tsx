@@ -1,5 +1,6 @@
 import { useUser, useAuth } from '@clerk/expo';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
 import {
@@ -80,8 +81,13 @@ export function SideMenu({ visible, onClose }: SideMenuProps) {
       onRequestClose={onClose}
     >
       <View style={styles.overlayContainer}>
-        {/* Backdrop Pressable */}
+        {/* Blurred Backdrop */}
         <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+          <BlurView
+            intensity={500}
+            tint="dark"
+            style={StyleSheet.absoluteFill}
+          />
           <Pressable style={styles.backdropPressable} onPress={onClose} />
         </Animated.View>
 
@@ -175,15 +181,15 @@ const styles = StyleSheet.create({
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
   },
   backdropPressable: {
-    flex: 1,
+    ...StyleSheet.absoluteFillObject,
   },
   drawer: {
     width: DRAWER_WIDTH,
     height: '100%',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: 'rgba(255, 255, 255, 0.92)',
     paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 24,
