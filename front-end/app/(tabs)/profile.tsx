@@ -3,8 +3,8 @@ import { StyleSheet, Text, View } from 'react-native';
 export default function Search() {
   return (
     <View style={styles.screen}>
-      <Text style={styles.text}>Search</Text>
-    </View>
+      <Text style={styles.text}>Profile and settings</Text>
+      </View>
   );
 }
 

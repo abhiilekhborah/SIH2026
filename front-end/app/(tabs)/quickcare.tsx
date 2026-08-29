@@ -1,19 +1,49 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { AppHeader } from '@/components/app-header';
+import React, { useState } from 'react';
+import { Alert, StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function QuickCare() {
+  const [unreadNotifications, setUnreadNotifications] = useState(2);
+
+  const handleOpenMenu = () => {
+    Alert.alert('Menu', 'Side navigation menu opened');
+  };
+
+  const handleOpenNotifications = () => {
+    Alert.alert('Notifications', 'QuickCare notifications');
+    if (unreadNotifications > 0) {
+      setUnreadNotifications(0);
+    }
+  };
+
   return (
-    <View style={styles.screen}>
-      <Text style={styles.text}>QuickCare</Text>
-    </View>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <AppHeader
+        title="QuickCare"
+        showMenu={true}
+        showNotification={true}
+        onPressMenu={handleOpenMenu}
+        onPressNotification={handleOpenNotifications}
+        badgeCount={unreadNotifications}
+      />
+      <View style={styles.container}>
+        <Text style={styles.text}>QuickCare Content</Text>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 20,
   },
   text: {
     fontSize: 20,
