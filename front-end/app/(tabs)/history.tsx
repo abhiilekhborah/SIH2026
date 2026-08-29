@@ -1,12 +1,10 @@
 import { AppHeader } from '@/components/app-header';
-<<<<<<< HEAD
-import { SideMenu } from '@/components/side-menu';
+import { useSideMenu } from '@/components/side-menu-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useCallback } from 'react';
 import {
   Alert,
   Modal,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,11 +12,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-=======
-import { useSideMenu } from '@/components/side-menu-context';
-import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
->>>>>>> a61a2324a2c91f6258a9d357f51537aa33d1b0ac
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 // ─── Types ────────────────────────────────────────────────────────────
@@ -557,20 +550,13 @@ const detailStyles = StyleSheet.create({
 // ─── Main History Tab ─────────────────────────────────────────────────
 
 export default function History() {
-<<<<<<< HEAD
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { openMenu } = useSideMenu();
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilter, setShowFilter] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
   const handleOpenNotifications = useCallback(() => {
-=======
-  const { openMenu } = useSideMenu();
-  const [unreadNotifications] = useState(0);
-
-  const handleOpenNotifications = () => {
->>>>>>> a61a2324a2c91f6258a9d357f51537aa33d1b0ac
     Alert.alert('Notifications', 'Medical history notifications');
   }, []);
 
@@ -624,11 +610,7 @@ export default function History() {
         title="History"
         showMenu={true}
         showNotification={true}
-<<<<<<< HEAD
-        onPressMenu={() => setIsMenuOpen(true)}
-=======
         onPressMenu={openMenu}
->>>>>>> a61a2324a2c91f6258a9d357f51537aa33d1b0ac
         onPressNotification={handleOpenNotifications}
         badgeCount={0}
       />
