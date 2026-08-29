@@ -1,13 +1,15 @@
 import { AppHeader } from '@/components/app-header';
+import { SideMenu } from '@/components/side-menu';
 import React, { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function History() {
   const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const handleOpenMenu = () => {
-    Alert.alert('Menu', 'Side navigation menu opened');
+    setIsMenuOpen(true);
   };
 
   const handleOpenNotifications = () => {
@@ -16,6 +18,7 @@ export default function History() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      <SideMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
       <AppHeader
         title="History"
         showMenu={true}

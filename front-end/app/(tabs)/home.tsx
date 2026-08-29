@@ -1,10 +1,12 @@
 import { AppHeader } from '@/components/app-header';
+import { SideMenu } from '@/components/side-menu';
 import { useUser } from '@clerk/expo';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
 import {
   Alert,
   ScrollView,
+  TextInput,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -15,11 +17,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function Home() {
   const { user } = useUser();
   const [unreadNotifications, setUnreadNotifications] = useState(3);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const userName = user?.firstName || user?.fullName || 'User';
 
   const handleOpenMenu = () => {
-    Alert.alert('Menu', 'Side navigation menu opened');
+    setIsMenuOpen(true);
   };
 
   const handleOpenNotifications = () => {
@@ -31,6 +35,9 @@ export default function Home() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      {/* Side Menu Drawer */}
+      <SideMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+
       {/* Universal Header with Hamburger on top-left and Notification button aligned */}
       <AppHeader
         title="MediQuick"
@@ -49,6 +56,23 @@ export default function Home() {
         <View style={styles.welcomeBanner}>
           <Text style={styles.greetingText}>Hello, {userName} 👋</Text>
           <Text style={styles.bannerTitle}>How are you feeling today?</Text>
+        </View>
+
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search-outline" size={20} color="#6B7280" style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search doctors, hospitals, services..."
+            placeholderTextColor="#9CA3AF"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.actionButton}>
+              <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Quick Actions Grid */}
@@ -108,7 +132,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 20,
     marginTop: 12,
-    marginBottom: 24,
+    marginBottom: 16,
   },
   greetingText: {
     fontSize: 14,
@@ -121,6 +145,29 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
     lineHeight: 28,
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 14,
+    height: 50,
+    marginBottom: 24,
+  },
+  searchIcon: {
+    marginRight: 10,
+  },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 15,
+    color: '#111827',
+  },
+  actionButton: {
+    padding: 4,
   },
   sectionHeader: {
     marginBottom: 16,
@@ -137,11 +184,13 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '48%',
-    backgroundColor: '#F9FAFB',
+    height: 170,
+    backgroundColor: '#cae4ffff',
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#F3F4F6',
+    borderColor: '#00236aff',
+    boxShadow: '0 3px 5px rgba(0, 47, 121, 1)',
   },
   iconContainer: {
     width: 44,
