@@ -1,24 +1,19 @@
 import { AppHeader } from '@/components/app-header';
-import { SideMenu } from '@/components/side-menu';
-import React, { useState } from 'react';
+import { useSideMenu } from '@/components/side-menu-context';
+import React from 'react';
 import { Alert, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Profile() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const handleOpenMenu = () => {
-    setIsMenuOpen(true);
-  };
+  const { openMenu } = useSideMenu();
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      <SideMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
       <AppHeader
         title="Profile"
         showMenu={true}
         showNotification={true}
-        onPressMenu={handleOpenMenu}
+        onPressMenu={openMenu}
         onPressNotification={() => Alert.alert('Notifications', 'Profile notifications')}
       />
       <View style={styles.screen}>
