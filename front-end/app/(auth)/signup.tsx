@@ -71,7 +71,7 @@ export default function SignUpScreen() {
 
       if (attempt.status === 'complete') {
         await setActive({ session: attempt.createdSessionId });
-        router.replace('/home');
+        router.replace('/home3');
       } else {
         Alert.alert('Incomplete', 'Verification did not finish.');
       }
