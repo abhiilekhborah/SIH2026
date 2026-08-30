@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediQuick Test Gallery</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background-color: #f5f7fa; color: #333; }
+        .upload-section { background: white; padding: 24px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 32px; }
+        .form-group { margin-bottom: 16px; }
+        label { display: block; margin-bottom: 8px; font-weight: 500; }
+        input[type="file"], select, input[type="text"] { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        button { background-color: #0066cc; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: 500; font-size: 16px; }
+        button:hover { background-color: #0052a3; }
+        button:disabled { background-color: #ccc; cursor: not-allowed; }
+        
+        .gallery-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .filters { display: flex; gap: 10px; }
+        .filter-btn { background: #e0e0e0; color: #333; border: none; padding: 6px 12px; border-radius: 16px; cursor: pointer; font-size: 14px; }
+        .filter-btn.active { background: #0066cc; color: white; }
+        
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; }
+        .card { background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+        .card-img-container { width: 100%; height: 200px; overflow: hidden; background: #eee; display: flex; justify-content: center; align-items: center; }
+        .card-img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: transform 0.2s; }
+        .card-img:hover { transform: scale(1.05); }
+        .card-body { padding: 16px; flex-grow: 1; display: flex; flex-direction: column; }
+        .card-type { font-size: 12px; font-weight: bold; color: #0066cc; text-transform: uppercase; margin-bottom: 8px; }
+        .card-desc { font-size: 14px; margin-bottom: 12px; flex-grow: 1; }
+        .card-date { font-size: 12px; color: #777; margin-bottom: 12px; }
+        .delete-btn { background-color: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 12px; width: 100%; }
+        .delete-btn:hover { background-color: #c82333; }
+        
+        #message { margin-top: 16px; padding: 12px; border-radius: 4px; display: none; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .loading { text-align: center; padding: 40px; color: #666; display: none; }
+        .empty-state { text-align: center; padding: 60px 20px; color: #666; background: white; border-radius: 8px; grid-column: 1 / -1; }
+    </style>
+</head>
+<body>
+
+    <h1>MediQuick Gallery Testing Interface</h1>
+
+    <div class="upload-section">
+        <h2>Upload Image</h2>
+        <form id="uploadForm">
+            <div class="form-group">
+                <label for="imageFile">Select Image</label>
+                <input type="file" id="imageFile" accept="image/jpeg, image/png, image/jpg, image/webp" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="imageType">Image Category</label>
+                <select id="imageType" required>
+                    <option value="PRESCRIPTION">Prescription</option>
+                    <option value="MEDICINE">Medicine</option>
+                    <option value="DIAGNOSTIC_REPORT">Diagnostic Report</option>
+                    <option value="MEDICAL_DOCUMENT">Medical Document</option>
+                    <option value="OTHER">Other</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="description">Description (Optional)</label>
+                <input type="text" id="description" placeholder="E.g., Dr. Smith's prescription">
+            </div>
+            
+            <button type="submit" id="uploadBtn">Upload Image</button>
+        </form>
+        <div id="message"></div>
+    </div>
+
+    <div class="gallery-section">
+        <div class="gallery-header">
+            <h2>Gallery</h2>
+            <div class="filters" id="filters">
+                <button class="filter-btn active" data-type="">All</button>
+                <button class="filter-btn" data-type="PRESCRIPTION">Prescriptions</button>
+                <button class="filter-btn" data-type="MEDICINE">Medicines</button>
+                <button class="filter-btn" data-type="DIAGNOSTIC_REPORT">Reports</button>
+                <button class="filter-btn" data-type="MEDICAL_DOCUMENT">Documents</button>
+                <button class="filter-btn" data-type="OTHER">Other</button>
+            </div>
+        </div>
+        
+        <div id="loading" class="loading">Loading images...</div>
+        <div class="grid" id="galleryGrid">
+            <!-- Images will be rendered here by JS -->
+        </div>
+    </div>
+
+    <script>
+        const uploadForm = document.getElementById('uploadForm');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const messageDiv = document.getElementById('message');
+        const galleryGrid = document.getElementById('galleryGrid');
+        const loadingDiv = document.getElementById('loading');
+        const filterBtns = document.querySelectorAll('.filter-btn');
+        
+        let currentFilter = '';
+
+        function showMessage(msg, isError = false) {
+            messageDiv.textContent = msg;
+            messageDiv.className = isError ? 'error' : 'success';
+            messageDiv.style.display = 'block';
+            setTimeout(() => { messageDiv.style.display = 'none'; }, 5000);
+        }
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fileInput = document.getElementById('imageFile');
+            const typeInput = document.getElementById('imageType');
+            const descInput = document.getElementById('description');
+            
+            if (!fileInput.files.length) return;
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('image_type', typeInput.value);
+            if (descInput.value) {
+                formData.append('description', descInput.value);
+            }
+            
+            uploadBtn.disabled = true;
+            uploadBtn.textContent = 'Uploading...';
+            
+            try {
+                const response = await fetch('/images/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok && result.success) {
+                    showMessage('Image uploaded successfully to Cloudinary!');
+                    uploadForm.reset();
+                    fetchImages(currentFilter); // Refresh gallery
+                } else {
+                    showMessage(result.detail || result.message || 'Upload failed', true);
+                }
+            } catch (error) {
+                showMessage('Network error during upload', true);
+            } finally {
+                uploadBtn.disabled = false;
+                uploadBtn.textContent = 'Upload Image';
+            }
+        });
+
+        async function fetchImages(type = '') {
+            galleryGrid.innerHTML = '';
+            loadingDiv.style.display = 'block';
+            
+            try {
+                const url = type ? `/images?type=${type}` : '/images';
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                loadingDiv.style.display = 'none';
+                
+                if (data.items.length === 0) {
+                    galleryGrid.innerHTML = '<div class="empty-state">No images found. Upload some above!</div>';
+                    return;
+                }
+                
+                data.items.forEach(img => {
+                    const date = new Date(img.created_at).toLocaleString();
+                    
+                    const card = document.createElement('div');
+                    card.className = 'card';
+                    card.innerHTML = `
+                        <div class="card-img-container">
+                            <img src="${img.secure_url}" class="card-img" alt="${img.original_filename}" onclick="window.open('${img.secure_url}', '_blank')">
+                        </div>
+                        <div class="card-body">
+                            <div class="card-type">${img.image_type.replace('_', ' ')}</div>
+                            <div class="card-desc">${img.description || 'No description'}</div>
+                            <div class="card-date">${date}</div>
+                            <button class="delete-btn" onclick="deleteImage('${img.id}')">Delete</button>
+                        </div>
+                    `;
+                    galleryGrid.appendChild(card);
+                });
+            } catch (error) {
+                loadingDiv.style.display = 'none';
+                galleryGrid.innerHTML = '<div class="empty-state">Error loading images. Is the backend running?</div>';
+            }
+        }
+
+        async function deleteImage(id) {
+            if (!confirm('Are you sure you want to delete this image? This cannot be undone.')) return;
+            
+            try {
+                const response = await fetch(`/images/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    fetchImages(currentFilter);
+                } else {
+                    alert('Failed to delete image');
+                }
+            } catch (error) {
+                alert('Network error during deletion');
+            }
+        }
+
+        // Setup filters
+        filterBtns.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                filterBtns.forEach(b => b.classList.remove('active'));
+                e.target.classList.add('active');
+                currentFilter = e.target.dataset.type;
+                fetchImages(currentFilter);
+            });
+        });
+
+        // Initial load
+        fetchImages();
+    </script>
+</body>
+</html>
