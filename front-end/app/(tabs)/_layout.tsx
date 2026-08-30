@@ -42,6 +42,7 @@ export default function TabsLayout() {
         <Ionicons name={focused ? "document-text" : "document-text-outline"} size={size} color={color} />
       ),
     }}/>
+    <Tabs.Screen name = "gallery" options = {{ href: null }} />
     <Tabs.Screen name = "profile" options = {{
       title : "Profile",
       tabBarIcon: ({ color, size, focused }) => (

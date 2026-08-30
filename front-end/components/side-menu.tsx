@@ -156,6 +156,14 @@ export function SideMenu({ visible, onClose }: SideMenuProps) {
 
             <TouchableOpacity
               style={styles.menuItem}
+              onPress={() => handleNavigate('/gallery')}
+            >
+              <Ionicons name="images-outline" size={22} color="#1A66E8" />
+              <Text style={styles.menuText}>Gallery</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
               onPress={() => handleNavigate('/profile')}
             >
               <Ionicons name="person-outline" size={22} color="#1A66E8" />
