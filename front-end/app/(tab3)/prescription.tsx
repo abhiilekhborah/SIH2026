@@ -382,7 +382,7 @@ export default function PrescriptionScreen() {
                   <View style={styles.detailBox}>
                     <Text style={styles.detailBoxTitle}>Doctor / Order Note</Text>
                     <Text style={{ fontSize: 13, color: "#334155", fontStyle: "italic" }}>
-                      "{selectedOrder.note}"
+                      &quot;{selectedOrder.note}&quot;
                     </Text>
                   </View>
                 )}

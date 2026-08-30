@@ -573,7 +573,7 @@ export default function PharmacistHomeScreen() {
               <View style={styles.detailSectionBox}>
                 <Text style={styles.detailSectionTitle}>Doctor Instructions</Text>
                 <Text style={styles.instructionsText}>
-                  "Mild fever and allergic rhinitis symptoms. Patient advised plenty of fluids and 3 days rest."
+                  &quot;Mild fever and allergic rhinitis symptoms. Patient advised plenty of fluids and 3 days rest.&quot;
                 </Text>
               </View>
             </ScrollView>

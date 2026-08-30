@@ -33,7 +33,7 @@ export default function LoginScreen() {
 
   function handleSignIn() {
     // TODO: sign the user in with Clerk here.
-    router.replace('/home')
+    router.replace('/home3')
   }
 
   // Google sign in: opens Google in a browser popup, then starts the session.
@@ -49,7 +49,7 @@ export default function LoginScreen() {
       if (createdSessionId && setActive) {
         // Google gave us a finished session, so log the user in.
         await setActive({ session: createdSessionId });
-        router.replace('/home');
+        router.replace('/home3');
       }
       // If there is no createdSessionId the user closed the popup, so do nothing.
     } catch (err: any) {
