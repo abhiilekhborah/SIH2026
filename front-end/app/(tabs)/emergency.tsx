@@ -1,5 +1,6 @@
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
+import { useNotifications } from '@/components/notification-context';
 import { useUser } from '@clerk/expo';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -852,6 +853,7 @@ const dashStyles = StyleSheet.create({
 
 export default function Emergency() {
   const { openMenu } = useSideMenu();
+  const { openNotifications } = useNotifications();
   const { user } = useUser();
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
@@ -965,7 +967,6 @@ export default function Emergency() {
 
   const handleViewMap = useCallback(() => Alert.alert('Hospital Map', 'Opening hospital map view'), []);
   const handleShareLocation = useCallback(() => Alert.alert('Location Shared', 'Your live location has been shared with your emergency contact.'), []);
-  const handleOpenNotifications = useCallback(() => Alert.alert('Notifications', 'Emergency alerts & notifications'), []);
 
   const isActive = emergencyStatus === 'active' || emergencyStatus === 'sending';
 
@@ -976,7 +977,7 @@ export default function Emergency() {
         showMenu={true}
         showNotification={true}
         onPressMenu={openMenu}
-        onPressNotification={handleOpenNotifications}
+        onPressNotification={openNotifications}
         badgeCount={0}
       />
 

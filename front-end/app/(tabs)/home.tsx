@@ -1,5 +1,6 @@
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
+import { useNotifications } from '@/components/notification-context';
 import { useUser } from '@clerk/expo';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
@@ -17,18 +18,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Home() {
   const { openMenu } = useSideMenu();
+  const { openNotifications } = useNotifications();
   const { user } = useUser();
-  const [unreadNotifications, setUnreadNotifications] = useState(3);
   const [searchQuery, setSearchQuery] = useState('');
 
   const userName = user?.firstName || user?.fullName || 'User';
-
-  const handleOpenNotifications = () => {
-    Alert.alert('Notifications', 'You have 3 new health updates');
-    if (unreadNotifications > 0) {
-      setUnreadNotifications(0);
-    }
-  };
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -38,8 +32,8 @@ export default function Home() {
         showMenu={true}
         showNotification={true}
         onPressMenu={openMenu}
-        onPressNotification={handleOpenNotifications}
-        badgeCount={unreadNotifications}
+        onPressNotification={openNotifications}
+        badgeCount={3}
       />
 
       <ScrollView

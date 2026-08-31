@@ -1,12 +1,14 @@
 import React from 'react';
-import { StyleSheet, Text, View, Alert } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
+import { useNotifications } from '@/components/notification-context';
 import { Ionicons } from '@expo/vector-icons';
 
 export default function ContactScreen() {
   const { openMenu } = useSideMenu();
+  const { openNotifications } = useNotifications();
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -15,7 +17,7 @@ export default function ContactScreen() {
         showMenu={true}
         showNotification={true}
         onPressMenu={openMenu}
-        onPressNotification={() => Alert.alert('Notifications', 'No new notifications')}
+        onPressNotification={openNotifications}
       />
       <View style={styles.container}>
         <Ionicons name="call-outline" size={64} color="#1A66E8" />
