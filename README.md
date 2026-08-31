@@ -1,50 +1,45 @@
-# Welcome to your Expo app 👋
+# MediQuick — SIH 2026
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+## Layout
 
-## Get started
-
-1. Install dependencies
-
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+```
+front-end/   Expo / React Native app  (all app code lives here)
+back-end/    API server               (not scaffolded yet)
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+## Running the app
+
+Everything runs from `front-end/`, **not** the repo root:
+
+```bash
+cd front-end
+npm install
+npx expo start
+```
+
+You also need `front-end/.env`, which is gitignored — ask the team for a copy. It
+holds the Supabase URL / anon key and the Clerk publishable key. Expo reads `.env`
+from the folder containing `app.json`, so it must sit in `front-end/`; a copy at the
+repo root is ignored without any warning.
+
+## If you're pulling after the front-end/ restructure
+
+The app used to live at the repo root and has moved back down into `front-end/`.
+After pulling:
+
+1. Commit or stash any in-flight work **before** pulling, or you'll get conflicts on
+   the old root paths.
+2. `cd front-end && npm install` — your old root `node_modules` is now orphaned and
+   can be deleted.
+3. Move your `.env` from the repo root into `front-end/`.
+4. Run `npx expo start` from `front-end/`. Running it from the root will fail.
+
+If routes behave strangely afterwards, a stale Expo cache is the usual cause:
+`npx expo start -c`.
 
 ## Learn more
 
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- [Expo documentation](https://docs.expo.dev/) — this project targets
+  [SDK 54](https://docs.expo.dev/versions/v54.0.0/)
+- [expo-router](https://docs.expo.dev/router/introduction) — routing is file-based;
+  `front-end/app/` is the route table
