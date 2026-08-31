@@ -1,0 +1,35 @@
+# Secrets — never commit these. Example files are allowed through.
+.env
+.env*.local
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Expo / React Native (front-end/, which lives on the front-end branch)
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+app-example
+.metro-health-check*
+
+# Python (Gallery/)
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Local databases
+*.db
+
+# Build info
+*.tsbuildinfo
+
+# Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS cruft
+.DS_Store
