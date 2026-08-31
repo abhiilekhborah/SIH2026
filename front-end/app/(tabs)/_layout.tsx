@@ -41,7 +41,7 @@ export default function TabsLayout() {
             title: "Emergency",
             tabBarButton: (props) => (
               <TouchableOpacity
-                {...props}
+                {...(props as any)}
                 style={styles.emergencyButtonWrapper}
                 activeOpacity={0.9}
               >
@@ -65,6 +65,10 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen name="gallery" options={{ href: null }} />
+        <Tabs.Screen name="about" options={{ href: null }} />
+        <Tabs.Screen name="contact" options={{ href: null }} />
+        <Tabs.Screen name="referrals" options={{ href: null }} />
+        <Tabs.Screen name="settings" options={{ href: null }} />
         <Tabs.Screen
           name="profile"
           options={{
