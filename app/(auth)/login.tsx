@@ -1,4 +1,5 @@
 import { useSSO } from '@clerk/expo';
+import { useSignIn } from '@clerk/expo/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import * as AuthSession from 'expo-auth-session';
 import { Image } from 'expo-image';
@@ -24,6 +25,7 @@ const DARK_BLUE = '#123E9E'; // Sign in button
 const BORDER = '#E5E7EB';
 
 export default function LoginScreen() {
+  const { isLoaded, signIn, setActive } = useSignIn();
   const { startSSOFlow } = useSSO();
   const router = useRouter();
 
@@ -31,25 +33,50 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  function handleSignIn() {
-    // TODO: sign the user in with Clerk here.
-    router.replace('/home')
-  }
+  // Email + password sign in: check the password, then start the session.
+  const handleSignIn = async () => {
+    // Clerk hydrates in the background, so wait until it is ready.
+    if (!isLoaded) return;
+    setLoading(true);
+
+    try {
+      // "identifier" and not "emailAddress": Clerk also accepts a username here.
+      const attempt = await signIn.create({
+        identifier: email,
+        password,
+      });
+
+      if (attempt.status === 'complete') {
+        // The password was right, so setActive is what logs the user in.
+        await setActive({ session: attempt.createdSessionId });
+        router.replace('/role');
+      } else {
+        // Clerk wants one more step from this account (2FA, password reset, ...).
+        Alert.alert('Incomplete', 'Sign in did not finish.');
+      }
+    } catch (err: any) {
+      Alert.alert('Sign in failed', err.errors?.[0]?.message ?? 'Try again');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Google sign in: opens Google in a browser popup, then starts the session.
   const handleGoogle = async () => {
     setLoading(true);
 
     try {
-      const { createdSessionId, setActive } = await startSSOFlow({
+      // The SSO flow hands back its own setActive, so rename it to avoid a
+      // clash with the setActive we already took from useSignIn above.
+      const { createdSessionId, setActive: setActiveSSO } = await startSSOFlow({
         strategy: 'oauth_google',
         redirectUrl: AuthSession.makeRedirectUri(),
       });
 
-      if (createdSessionId && setActive) {
+      if (createdSessionId && setActiveSSO) {
         // Google gave us a finished session, so log the user in.
-        await setActive({ session: createdSessionId });
-        router.replace('/home');
+        await setActiveSSO({ session: createdSessionId });
+        router.replace('/role');
       }
       // If there is no createdSessionId the user closed the popup, so do nothing.
     } catch (err: any) {
@@ -110,7 +137,11 @@ export default function LoginScreen() {
 
         <Text style={styles.forgot}>Forgot your password?</Text>
 
-        <Pressable style={styles.signInButton} onPress={handleSignIn}>
+        <Pressable
+          style={styles.signInButton}
+          onPress={handleSignIn}
+          disabled={loading}
+        >
           <Text style={styles.signInText}>Sign in</Text>
           <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
         </Pressable>
