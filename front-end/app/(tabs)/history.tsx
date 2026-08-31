@@ -1,5 +1,6 @@
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
+import { useNotifications } from '@/components/notification-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useCallback } from 'react';
 import {
@@ -556,9 +557,7 @@ export default function History() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
-  const handleOpenNotifications = useCallback(() => {
-    Alert.alert('Notifications', 'Medical history notifications');
-  }, []);
+  const { openNotifications } = useNotifications();
 
   const getCategoryCount = (id: CategoryId): number => {
     if (id === 'consultations') return MOCK_CONSULTATIONS.length;
@@ -611,7 +610,7 @@ export default function History() {
         showMenu={true}
         showNotification={true}
         onPressMenu={openMenu}
-        onPressNotification={handleOpenNotifications}
+        onPressNotification={openNotifications}
         badgeCount={0}
       />
 

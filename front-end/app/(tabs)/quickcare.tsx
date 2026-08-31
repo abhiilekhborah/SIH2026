@@ -1,19 +1,13 @@
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
-import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { useNotifications } from '@/components/notification-context';
+import React from 'react';
+import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function QuickCare() {
   const { openMenu } = useSideMenu();
-  const [unreadNotifications, setUnreadNotifications] = useState(2);
-
-  const handleOpenNotifications = () => {
-    Alert.alert('Notifications', 'QuickCare notifications');
-    if (unreadNotifications > 0) {
-      setUnreadNotifications(0);
-    }
-  };
+  const { openNotifications } = useNotifications();
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -22,8 +16,7 @@ export default function QuickCare() {
         showMenu={true}
         showNotification={true}
         onPressMenu={openMenu}
-        onPressNotification={handleOpenNotifications}
-        badgeCount={unreadNotifications}
+        onPressNotification={openNotifications}
       />
       <View style={styles.container}>
         <Text style={styles.text}>QuickCare Content</Text>
