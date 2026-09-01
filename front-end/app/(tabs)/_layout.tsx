@@ -27,11 +27,11 @@ export default function TabsLayout() {
           }}
         />
         <Tabs.Screen
-          name="quickcare"
+          name="AI_Care"
           options={{
-            title: "Quick Care",
+            title: "AI_Care",
             tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="medkit-outline" label="Quick Care" />
+              <TabIcon focused={focused} icon="medkit-outline" label="AI Care" />
             ),
           }}
         />
