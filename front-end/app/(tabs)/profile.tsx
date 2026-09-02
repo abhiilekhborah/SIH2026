@@ -192,6 +192,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
+    paddingBottom: 0,
   },
   cardContainer: {
     borderRadius: 24,
