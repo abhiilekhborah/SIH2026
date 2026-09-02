@@ -3,9 +3,10 @@ import { useSideMenu } from '@/components/side-menu-context';
 import { useNotifications } from '@/components/notification-context';
 import { useUser } from '@clerk/expo';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Alert,
+  Dimensions,
   ScrollView,
   TextInput,
   StyleSheet,
@@ -21,13 +22,41 @@ export default function Home() {
   const { user } = useUser();
   const [searchQuery, setSearchQuery] = useState('');
   const [showWelcome, setShowWelcome] = useState(true);
+  const { width } = Dimensions.get('window');
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const numCards = showWelcome ? 4 : 3;
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowWelcome(false);
+      setActiveIndex(prev => prev >= 3 ? 0 : prev);
     }, 5000);
     return () => clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveIndex((prev) => {
+        const nextIndex = (prev + 1) % numCards;
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({
+            x: nextIndex * (width - 28),
+            animated: true,
+          });
+        }
+        return nextIndex;
+      });
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [numCards, width]);
+
+  const onMomentumScrollEnd = (event: any) => {
+    const offsetX = event.nativeEvent.contentOffset.x;
+    const index = Math.round(offsetX / (width - 28));
+    setActiveIndex(index);
+  };
 
   const userName = user?.firstName || user?.fullName || 'User';
 
@@ -48,14 +77,43 @@ export default function Home() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Welcome Section */}
-        <View style={styles.welcomeBanner}>
-          {showWelcome && (
-            <>
-              <Text style={styles.greetingText}>Hello, {userName} 👋</Text>
-              <Text style={styles.bannerTitle}>How are you feeling today?</Text>
-            </>
-          )}
+        {/* Welcome Section Carousel */}
+        <View style={{ marginTop: 12, marginBottom: 16 }}>
+          <ScrollView
+            ref={scrollViewRef}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            snapToInterval={width - 28}
+            decelerationRate="fast"
+            contentContainerStyle={{ gap: 12 }}
+            onMomentumScrollEnd={onMomentumScrollEnd}
+          >
+            {showWelcome && (
+              <View style={[styles.carouselCard, { width: width - 40, backgroundColor: '#dadadaff' }]}>
+                <Text style={styles.greetingText}>Hello, {userName} 👋</Text>
+                <Text style={styles.bannerTitle}>How are you feeling today?</Text>
+              </View>
+            )}
+            
+            {/* Alert Card */}
+            <View style={[styles.carouselCard, { width: width - 40, backgroundColor: '#FEE2E2' }]}>
+              <Text style={[styles.greetingText, { color: '#991B1B' }]}>Alert ⚠️</Text>
+              <Text style={[styles.bannerTitle, { color: '#7F1D1D' }]}>Complete your health assessment</Text>
+            </View>
+
+            {/* Notification Card */}
+            <View style={[styles.carouselCard, { width: width - 40, backgroundColor: '#E0F2FE' }]}>
+              <Text style={[styles.greetingText, { color: '#0369A1' }]}>Latest Notification 🔔</Text>
+              <Text style={[styles.bannerTitle, { color: '#0C4A6E' }]}>Your report is ready to view</Text>
+            </View>
+            
+            {/* Updates Card */}
+            <View style={[styles.carouselCard, { width: width - 40, backgroundColor: '#FEF3C7' }]}>
+              <Text style={[styles.greetingText, { color: '#92400E' }]}>Updates 📅</Text>
+              <Text style={[styles.bannerTitle, { color: '#78350F' }]}>New features available in app</Text>
+            </View>
+          </ScrollView>
         </View>
 
         {/* Search Bar */}
@@ -247,15 +305,11 @@ const styles = StyleSheet.create({
     paddingBottom: 80,
   },
 
-  welcomeBanner: {
-    backgroundColor: '#dadadaff',
+  carouselCard: {
     minHeight: 160,
-    width: '100%',
     borderRadius: 16,
     padding: 24,
     justifyContent: 'center',
-    marginTop: 12,
-    marginBottom: 16,
     overflow: 'hidden',
   },
 
