@@ -826,7 +826,7 @@ function ActiveDashboard({
 }
 
 const dashStyles = StyleSheet.create({
-  container: { paddingBottom: 24 },
+  container: { paddingBottom: 80 },
   banner: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#DC2626',
     paddingVertical: 14, borderRadius: 14, gap: 10, marginBottom: 16,
@@ -1032,7 +1032,7 @@ export default function Emergency() {
 const mainStyles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
   scrollView: { flex: 1 },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 24 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 80 },
   sosSection: { alignItems: 'center', paddingVertical: 20 },
   quickInfo: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',

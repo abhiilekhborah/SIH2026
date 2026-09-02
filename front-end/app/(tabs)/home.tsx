@@ -3,10 +3,9 @@ import { useSideMenu } from '@/components/side-menu-context';
 import { useNotifications } from '@/components/notification-context';
 import { useUser } from '@clerk/expo';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Alert,
-  ImageBackground,
   ScrollView,
   TextInput,
   StyleSheet,
@@ -21,6 +20,14 @@ export default function Home() {
   const { openNotifications } = useNotifications();
   const { user } = useUser();
   const [searchQuery, setSearchQuery] = useState('');
+  const [showWelcome, setShowWelcome] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowWelcome(false);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const userName = user?.firstName || user?.fullName || 'User';
 
@@ -37,18 +44,19 @@ export default function Home() {
       />
 
       <ScrollView
+        style={{ flex: 1 }}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Welcome Section */}
-        <ImageBackground
-          source={require('../../assets/images/Untitled design.png')}
-          style={styles.welcomeBanner}
-          imageStyle={styles.welcomeBannerImage}
-        >
-          <Text style={styles.greetingText}>Hello, {userName} 👋</Text>
-          <Text style={styles.bannerTitle}>How are you feeling today?</Text>
-        </ImageBackground>
+        <View style={styles.welcomeBanner}>
+          {showWelcome && (
+            <>
+              <Text style={styles.greetingText}>Hello, {userName} 👋</Text>
+              <Text style={styles.bannerTitle}>How are you feeling today?</Text>
+            </>
+          )}
+        </View>
 
         {/* Search Bar */}
         <View style={styles.searchContainer}>
@@ -80,18 +88,6 @@ export default function Home() {
         {/* Quick Actions Header */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
-
-          <TouchableOpacity
-            style={styles.viewAllButton}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.viewAllText}>View All</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={16}
-              color="#2563EB"
-            />
-          </TouchableOpacity>
         </View>
 
         {/* Quick Actions Grid */}
@@ -150,8 +146,8 @@ export default function Home() {
               </View>
             </View>
 
-            <Text style={styles.cardTitle}>Consultation</Text>
-            <Text style={styles.cardSubtitle}>Talk to doctor</Text>
+            <Text style={styles.cardTitle}>Connect to doctor</Text>
+            <Text style={styles.cardSubtitle}>Consult now</Text>
           </TouchableOpacity>
 
           {/* Health Stats */}
@@ -179,8 +175,8 @@ export default function Home() {
               </View>
             </View>
 
-            <Text style={styles.cardTitle}>Health Stats</Text>
-            <Text style={styles.cardSubtitle}>Track metrics</Text>
+            <Text style={styles.cardTitle}>Pharmacy Services</Text>
+            <Text style={styles.cardSubtitle}>Medicines delivered to your doorstep</Text>
           </TouchableOpacity>
 
           {/* Records */}
@@ -208,10 +204,33 @@ export default function Home() {
               </View>
             </View>
 
-            <Text style={styles.cardTitle}>Records</Text>
-            <Text style={styles.cardSubtitle}>View history</Text>
+            <Text style={styles.cardTitle}>Nearby Hospital</Text>
+            <Text style={styles.cardSubtitle}>Emergency and appointments</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Risk Section Header */}
+        <View style={[styles.sectionHeader, { marginTop: 24 }]}>
+          <Text style={styles.sectionTitle}>Risk</Text>
+          <TouchableOpacity style={styles.viewAllButton}>
+            <Text style={styles.viewAllText}>View all</Text>
+            <Ionicons name="chevron-forward" size={14} color="#2563EB" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Risk Card */}
+        <TouchableOpacity style={styles.fullWidthCard} activeOpacity={0.8}>
+          <View style={styles.cardTop}>
+            <View style={[styles.iconContainer, { backgroundColor: '#FEE2E2' }]}>
+              <Ionicons name="warning-outline" size={24} color="#DC2626" />
+            </View>
+            <View style={styles.arrowButton}>
+              <Ionicons name="arrow-forward" size={16} color="#2563EB" />
+            </View>
+          </View>
+          <Text style={styles.cardTitle}>Health Assessment Risk</Text>
+          <Text style={styles.cardSubtitle}>You have a new alert based on your recent activity. Please review your risk factors.</Text>
+        </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
   );
@@ -225,21 +244,19 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 24,
+    paddingBottom: 80,
   },
 
   welcomeBanner: {
-    backgroundColor: '#99befdff',
+    backgroundColor: '#dadadaff',
+    minHeight: 160,
+    width: '100%',
     borderRadius: 16,
-    padding: 20,
+    padding: 24,
+    justifyContent: 'center',
     marginTop: 12,
     marginBottom: 16,
     overflow: 'hidden',
-  },
-
-  welcomeBannerImage: {
-    borderRadius: 16,
-    resizeMode: 'cover',
   },
 
   greetingText: {
@@ -319,6 +336,16 @@ const styles = StyleSheet.create({
   },
 
   /* Cards */
+  fullWidthCard: {
+    width: '100%',
+    backgroundColor: '#cae4ffff',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#00236aff',
+    boxShadow: '0 3px 5px rgba(0, 47, 121, 1)',
+  },
+
   card: {
     width: '48%',
     height: 170,

@@ -450,7 +450,7 @@ export default function Gallery() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
-  listContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  listContent: { paddingHorizontal: 20, paddingBottom: 80 },
   sectionTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginTop: 20, marginBottom: 12 },
   uploadRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
   uploadButton: { flex: 1, alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 14, borderWidth: 1, borderColor: '#E5E7EB', paddingVertical: 20 },

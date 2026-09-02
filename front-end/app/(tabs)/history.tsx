@@ -366,7 +366,7 @@ const listStyles = StyleSheet.create({
   backButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#111827', flex: 1, textAlign: 'center' },
   count: { fontSize: 13, color: '#6B7280', paddingHorizontal: 20, marginBottom: 8 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 80 },
   card: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 14,
     borderWidth: 1, borderColor: '#E2E8F0', padding: 16, marginBottom: 10,
@@ -526,7 +526,7 @@ const detailStyles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   backButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#111827', flex: 1, textAlign: 'center' },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 80 },
   section: { backgroundColor: '#F8FAFC', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', padding: 16, gap: 12 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   label: { fontSize: 13, color: '#6B7280', flex: 1 },
@@ -670,7 +670,7 @@ export default function History() {
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 24 },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 80 },
   searchRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   searchContainer: {
     flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFC',
