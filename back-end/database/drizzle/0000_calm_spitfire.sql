@@ -1,23 +1,6 @@
 -- Current sql file was generated after introspecting the database
 -- If you want to run this migration please uncomment this code before executing migrations
 /*
-CREATE TABLE "users" (
-	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
-	"phone" varchar(20),
-	"email" varchar(255),
-	"password_hash" text,
-	"name" varchar(255) NOT NULL,
-	"dob" date,
-	"gender" varchar(20),
-	"preferred_language" varchar(10) DEFAULT 'en',
-	"status" varchar(50) DEFAULT 'active',
-	"created_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-	"updated_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
-	CONSTRAINT "users_phone_key" UNIQUE("phone"),
-	CONSTRAINT "users_email_key" UNIQUE("email")
-);
---> statement-breakpoint
-ALTER TABLE "users" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "roles" (
 	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
 	"name" varchar(50) NOT NULL,
@@ -406,6 +389,19 @@ CREATE TABLE "notifications" (
 );
 --> statement-breakpoint
 ALTER TABLE "notifications" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "gallery_images" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"secure_url" text NOT NULL,
+	"public_id" text NOT NULL,
+	"original_filename" text NOT NULL,
+	"image_type" text NOT NULL,
+	"description" text,
+	"file_size" integer,
+	"mime_type" text,
+	"created_at" timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "patient_profiles" (
 	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
 	"user_id" uuid NOT NULL,
@@ -425,6 +421,25 @@ CREATE TABLE "patient_profiles" (
 );
 --> statement-breakpoint
 ALTER TABLE "patient_profiles" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
+CREATE TABLE "users" (
+	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
+	"phone" varchar(20),
+	"email" varchar(255),
+	"password_hash" text,
+	"name" varchar(255) NOT NULL,
+	"dob" date,
+	"gender" varchar(20),
+	"preferred_language" varchar(10) DEFAULT 'en',
+	"status" varchar(50) DEFAULT 'active',
+	"created_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+	"updated_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
+	"clerk_id" varchar(255),
+	CONSTRAINT "users_phone_key" UNIQUE("phone"),
+	CONSTRAINT "users_email_key" UNIQUE("email"),
+	CONSTRAINT "users_clerk_id_key" UNIQUE("clerk_id")
+);
+--> statement-breakpoint
+ALTER TABLE "users" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "audit_logs" (
 	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
 	"actor_user_id" uuid,

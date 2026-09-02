@@ -1,24 +1,7 @@
-import { pgTable, unique, uuid, varchar, text, date, timestamp, foreignKey, boolean, integer, doublePrecision, time, numeric, jsonb, bigint } from "drizzle-orm/pg-core"
+import { pgTable, unique, uuid, varchar, foreignKey, text, timestamp, boolean, integer, doublePrecision, time, numeric, date, jsonb, bigint } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
-
-export const users = pgTable("users", {
-	id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
-	phone: varchar({ length: 20 }),
-	email: varchar({ length: 255 }).unique(),
-	passwordHash: text("password_hash"),
-	name: varchar({ length: 255 }).notNull(),
-	dob: date(),
-	gender: varchar({ length: 20 }),
-	preferredLanguage: varchar("preferred_language", { length: 10 }).default('en'),
-	status: varchar({ length: 50 }).default('active'),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-	unique("users_phone_key").on(table.phone),
-	unique("users_email_key").on(table.email),
-]);
 
 export const roles = pgTable("roles", {
 	id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
@@ -762,6 +745,19 @@ export const notifications = pgTable("notifications", {
 		}).onDelete("cascade"),
 ]);
 
+export const galleryImages = pgTable("gallery_images", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	secureUrl: text("secure_url").notNull(),
+	publicId: text("public_id").notNull(),
+	originalFilename: text("original_filename").notNull(),
+	imageType: text("image_type").notNull(),
+	description: text(),
+	fileSize: integer("file_size"),
+	mimeType: text("mime_type"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`timezone('utc'::text, now())`).notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).default(sql`timezone('utc'::text, now())`).notNull(),
+});
+
 export const patientProfiles = pgTable("patient_profiles", {
 	id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
 	userId: uuid("user_id").notNull(),
@@ -784,6 +780,25 @@ export const patientProfiles = pgTable("patient_profiles", {
 			name: "patient_profiles_user_id_fkey"
 		}).onDelete("cascade"),
 	unique("patient_profiles_user_id_key").on(table.userId),
+]);
+
+export const users = pgTable("users", {
+	id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
+	phone: varchar({ length: 20 }),
+	email: varchar({ length: 255 }),
+	passwordHash: text("password_hash"),
+	name: varchar({ length: 255 }).notNull(),
+	dob: date(),
+	gender: varchar({ length: 20 }),
+	preferredLanguage: varchar("preferred_language", { length: 10 }).default('en'),
+	status: varchar({ length: 50 }).default('active'),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
+	clerkId: varchar("clerk_id", { length: 255 }),
+}, (table) => [
+	unique("users_phone_key").on(table.phone),
+	unique("users_email_key").on(table.email),
+	unique("users_clerk_id_key").on(table.clerkId),
 ]);
 
 export const auditLogs = pgTable("audit_logs", {

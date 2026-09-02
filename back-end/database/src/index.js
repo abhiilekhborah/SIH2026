@@ -6,6 +6,7 @@ import morgan from "morgan";
 
 import userAuthRoutes from "./routes/userAuthRoutes.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
+import { clerkMiddleware } from "@clerk/express";
 
 dotenv.config();
 
@@ -19,6 +20,8 @@ app.use(morgan("dev")); // Logs HTTP requests
 
 // Body parsing middleware
 app.use(express.json());
+app.use(clerkMiddleware());
+
 
 // Routes
 app.use("/api/v1/user", userAuthRoutes);
