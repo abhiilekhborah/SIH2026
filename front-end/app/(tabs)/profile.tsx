@@ -22,6 +22,12 @@ export default function Profile() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      {/* Light gradient backdrop */}
+      <View style={StyleSheet.absoluteFillObject}>
+        <View style={styles.bgLight} />
+        <View style={styles.bgTealTop} />
+      </View>
+
       {/* Custom Header */}
       <View style={styles.headerContainer}>
         <View style={styles.headerLeft}>
@@ -144,15 +150,17 @@ function OptionItem({ icon, iconColor, iconBg, title, onPress, hideChevron }: { 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#F0FAFA',
   },
+  bgLight:   { ...StyleSheet.absoluteFillObject, backgroundColor: '#F0FAFA' },
+  bgTealTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 240, backgroundColor: 'rgba(0,181,173,0.10)', borderBottomLeftRadius: 40, borderBottomRightRadius: 40 },
   headerContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingTop: 10,
     paddingBottom: 20,
-    backgroundColor: '#FAFAFA',
+    backgroundColor: 'transparent',
   },
   headerLeft: {
     justifyContent: 'center',
