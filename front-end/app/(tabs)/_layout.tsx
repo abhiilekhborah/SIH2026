@@ -43,6 +43,7 @@ export default function TabsLayout() {
       ),
     }}/>
     <Tabs.Screen name = "gallery" options = {{ href: null }} />
+    <Tabs.Screen name = "consultation" options = {{ href: null }} />
     <Tabs.Screen name = "profile" options = {{
       title : "Profile",
       tabBarIcon: ({ color, size, focused }) => (

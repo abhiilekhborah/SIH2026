@@ -1,7 +1,10 @@
+import '../polyfills'
 import { ClerkProvider } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
 import { Slot } from 'expo-router'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+
+// Initialize LiveKit WebRTC globals (must be called once before any LiveKit usage)
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY!
 
