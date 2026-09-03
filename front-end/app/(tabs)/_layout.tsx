@@ -55,16 +55,9 @@ export default function TabsLayout() {
             ),
           }}
         />
-        <Tabs.Screen
-          name="history"
-          options={{
-            title: "History",
-            tabBarIcon: ({ focused }) => (
-              <TabIcon focused={focused} icon="document-text-outline" label="History" />
-            ),
-          }}
-        />
+        <Tabs.Screen name="history" options={{ title: "History", tabBarIcon: ({ focused }) => ( <TabIcon focused={focused} icon="document-text-outline" label="History" /> ) }} />
         <Tabs.Screen name="gallery" options={{ href: null }} />
+        <Tabs.Screen name="pharmacy" options={{ href: null }} />
         <Tabs.Screen name="about" options={{ href: null }} />
         <Tabs.Screen name="contact" options={{ href: null }} />
         <Tabs.Screen name="referrals" options={{ href: null }} />
