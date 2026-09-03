@@ -972,6 +972,12 @@ export default function Emergency() {
 
   return (
     <SafeAreaView style={mainStyles.safeArea} edges={['top', 'left', 'right']}>
+      {/* Light gradient backdrop */}
+      <View style={StyleSheet.absoluteFillObject}>
+        <View style={mainStyles.bgLight} />
+        <View style={mainStyles.bgTealTop} />
+      </View>
+
       <AppHeader
         title="Emergency"
         showMenu={true}
@@ -979,6 +985,8 @@ export default function Emergency() {
         onPressMenu={openMenu}
         onPressNotification={openNotifications}
         badgeCount={0}
+        style={mainStyles.header}
+        buttonBackgroundColor="rgba(0,181,173,0.12)"
       />
 
       <ScrollView style={mainStyles.scrollView} contentContainerStyle={mainStyles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -1030,17 +1038,20 @@ export default function Emergency() {
 }
 
 const mainStyles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  safeArea: { flex: 1, backgroundColor: '#F0FAFA' },
+  bgLight:   { ...StyleSheet.absoluteFillObject, backgroundColor: '#F0FAFA' },
+  bgTealTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 220, backgroundColor: 'rgba(0,181,173,0.10)', borderBottomLeftRadius: 40, borderBottomRightRadius: 40 },
+  header:    { backgroundColor: 'transparent' },
   scrollView: { flex: 1 },
   scrollContent: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 80 },
   sosSection: { alignItems: 'center', paddingVertical: 20 },
   quickInfo: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-    backgroundColor: '#F8FAFC', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0',
+    backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,181,173,0.18)',
     paddingVertical: 14, paddingHorizontal: 16, marginBottom: 16,
   },
   infoItem: { flex: 1, alignItems: 'center', gap: 4 },
   infoIcon: { fontSize: 18 },
-  infoText: { fontSize: 12, fontWeight: '600', color: '#475569', textAlign: 'center' },
-  divider: { width: 1, height: 28, backgroundColor: '#E2E8F0' },
+  infoText: { fontSize: 12, fontWeight: '600', color: '#0D3349', textAlign: 'center' },
+  divider: { width: 1, height: 28, backgroundColor: 'rgba(0,181,173,0.20)' },
 });
