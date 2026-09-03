@@ -3,6 +3,7 @@ import { useSideMenu } from '@/components/side-menu-context';
 import { useUser } from '@clerk/expo';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState } from 'react';
+import { useRouter } from 'expo-router';
 import {
   Alert,
   ImageBackground,
@@ -18,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 export default function Home() {
   const { openMenu } = useSideMenu();
   const { user } = useUser();
+  const router = useRouter();
   const [unreadNotifications, setUnreadNotifications] = useState(3);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -132,7 +134,7 @@ export default function Home() {
           </TouchableOpacity>
 
           {/* Consultation */}
-          <TouchableOpacity style={styles.card} activeOpacity={0.8}>
+          <TouchableOpacity style={styles.card} activeOpacity={0.8} onPress={() => router.push('/(tabs)/consultation' as any)}>
             <View style={styles.cardTop}>
               <View
                 style={[
