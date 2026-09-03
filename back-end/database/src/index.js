@@ -4,7 +4,9 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 
+
 import userAuthRoutes from "./routes/userAuthRoutes.js";
+import doctorRoutes from  "./routes/doctorRoutes.js"
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { clerkMiddleware } from "@clerk/express";
 
@@ -25,6 +27,7 @@ app.use(clerkMiddleware());
 
 // Routes
 app.use("/api/v1/user", userAuthRoutes);
+app.use("/api/v1/user/doctor", doctorRoutes);
 
 // Add patient routes here when you create them
 // import patientRoutes from "./routes/patientRoutes.js";

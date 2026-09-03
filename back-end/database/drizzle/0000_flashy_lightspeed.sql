@@ -39,26 +39,6 @@ CREATE TABLE "auth_sessions" (
 );
 --> statement-breakpoint
 ALTER TABLE "auth_sessions" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-CREATE TABLE "facilities" (
-	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
-	"name" varchar(255) NOT NULL,
-	"type" varchar(50) NOT NULL,
-	"address" text,
-	"latitude" double precision,
-	"longitude" double precision,
-	"contact_phone" varchar(20),
-	"teleconsultation_enabled" boolean DEFAULT false,
-	"status" varchar(50) DEFAULT 'active'
-);
---> statement-breakpoint
-ALTER TABLE "facilities" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-CREATE TABLE "departments" (
-	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
-	"facility_id" uuid NOT NULL,
-	"name" varchar(100) NOT NULL
-);
---> statement-breakpoint
-ALTER TABLE "departments" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "doctor_availability" (
 	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
 	"doctor_profile_id" uuid NOT NULL,
@@ -80,8 +60,6 @@ CREATE TABLE "doctor_profiles" (
 	"consultation_fee" numeric(10, 2) DEFAULT '0.00',
 	"name" varchar,
 	"user_id" uuid,
-	"facility_id" uuid,
-	"department_id" uuid,
 	CONSTRAINT "doctor_profiles_license_no_key" UNIQUE("license_no")
 );
 --> statement-breakpoint
@@ -96,19 +74,9 @@ CREATE TABLE "pharmacist_profiles" (
 );
 --> statement-breakpoint
 ALTER TABLE "pharmacist_profiles" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-CREATE TABLE "patient_facility_links" (
-	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
-	"patient_id" uuid NOT NULL,
-	"facility_id" uuid NOT NULL,
-	"local_mrn" varchar(100),
-	"first_visit_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP
-);
---> statement-breakpoint
-ALTER TABLE "patient_facility_links" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "receptionist_profiles" (
 	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
-	"user_id" uuid,
-	"facility_id" uuid
+	"user_id" uuid
 );
 --> statement-breakpoint
 ALTER TABLE "receptionist_profiles" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
@@ -116,8 +84,6 @@ CREATE TABLE "appointments" (
 	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
 	"patient_id" uuid NOT NULL,
 	"doctor_id" uuid NOT NULL,
-	"facility_id" uuid NOT NULL,
-	"department_id" uuid,
 	"mode" varchar(20) DEFAULT 'in_person',
 	"scheduled_at" timestamp with time zone NOT NULL,
 	"status" varchar(30) DEFAULT 'booked',
@@ -131,7 +97,6 @@ ALTER TABLE "appointments" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "queue_tokens" (
 	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
 	"appointment_id" uuid NOT NULL,
-	"facility_id" uuid NOT NULL,
 	"token_number" integer NOT NULL,
 	"queue_date" date NOT NULL,
 	"status" varchar(30) DEFAULT 'waiting',
@@ -319,20 +284,11 @@ CREATE TABLE "dispensing_logs" (
 );
 --> statement-breakpoint
 ALTER TABLE "dispensing_logs" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
-CREATE TABLE "diagnostic_centers" (
-	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
-	"facility_id" uuid NOT NULL,
-	"accreditation_no" varchar(100),
-	CONSTRAINT "diagnostic_centers_facility_id_key" UNIQUE("facility_id")
-);
---> statement-breakpoint
-ALTER TABLE "diagnostic_centers" ENABLE ROW LEVEL SECURITY;--> statement-breakpoint
 CREATE TABLE "diagnostic_orders" (
 	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
 	"consultation_id" uuid,
 	"patient_id" uuid NOT NULL,
 	"ordering_doctor_id" uuid NOT NULL,
-	"diagnostic_center_id" uuid,
 	"status" varchar(30) DEFAULT 'requested',
 	"clinical_notes" text,
 	"ordered_at" timestamp with time zone DEFAULT CURRENT_TIMESTAMP
@@ -365,9 +321,6 @@ CREATE TABLE "referrals" (
 	"id" uuid PRIMARY KEY DEFAULT uuid_generate_v4() NOT NULL,
 	"patient_id" uuid NOT NULL,
 	"referring_doctor_id" uuid NOT NULL,
-	"referring_facility_id" uuid NOT NULL,
-	"target_facility_id" uuid NOT NULL,
-	"target_department_id" uuid,
 	"urgency" varchar(20) DEFAULT 'routine',
 	"reason" text NOT NULL,
 	"status" varchar(30) DEFAULT 'sent',
@@ -457,24 +410,15 @@ ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_role_id_fkey" FOREIGN KEY ("
 ALTER TABLE "user_roles" ADD CONSTRAINT "user_roles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "otp_verifications" ADD CONSTRAINT "otp_verifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "auth_sessions" ADD CONSTRAINT "auth_sessions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "departments" ADD CONSTRAINT "departments_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "public"."facilities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "doctor_availability" ADD CONSTRAINT "doctor_availability_doctor_profile_id_fkey" FOREIGN KEY ("doctor_profile_id") REFERENCES "public"."doctor_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "doctor_profiles" ADD CONSTRAINT "doctor_profiles_department_id_fkey" FOREIGN KEY ("department_id") REFERENCES "public"."departments"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "doctor_profiles" ADD CONSTRAINT "doctor_profiles_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "public"."facilities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "doctor_profiles" ADD CONSTRAINT "doctor_profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "pharmacist_profiles" ADD CONSTRAINT "fk_pharmacist_pharmacy" FOREIGN KEY ("pharmacy_id") REFERENCES "public"."pharmacies"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "pharmacist_profiles" ADD CONSTRAINT "pharmacist_profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "patient_facility_links" ADD CONSTRAINT "patient_facility_links_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "public"."facilities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "patient_facility_links" ADD CONSTRAINT "patient_facility_links_patient_id_fkey" FOREIGN KEY ("patient_id") REFERENCES "public"."patient_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "receptionist_profiles" ADD CONSTRAINT "receptionist_profiles_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "public"."facilities"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "receptionist_profiles" ADD CONSTRAINT "receptionist_profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "appointments" ADD CONSTRAINT "appointments_booked_by_user_id_fkey" FOREIGN KEY ("booked_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "appointments" ADD CONSTRAINT "appointments_department_id_fkey" FOREIGN KEY ("department_id") REFERENCES "public"."departments"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "appointments" ADD CONSTRAINT "appointments_doctor_id_fkey" FOREIGN KEY ("doctor_id") REFERENCES "public"."doctor_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "appointments" ADD CONSTRAINT "appointments_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "public"."facilities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "appointments" ADD CONSTRAINT "appointments_patient_id_fkey" FOREIGN KEY ("patient_id") REFERENCES "public"."patient_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "queue_tokens" ADD CONSTRAINT "queue_tokens_appointment_id_fkey" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "queue_tokens" ADD CONSTRAINT "queue_tokens_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "public"."facilities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "teleconsultation_sessions" ADD CONSTRAINT "teleconsultation_sessions_appointment_id_fkey" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "consultations" ADD CONSTRAINT "consultations_appointment_id_fkey" FOREIGN KEY ("appointment_id") REFERENCES "public"."appointments"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "consultations" ADD CONSTRAINT "consultations_doctor_id_fkey" FOREIGN KEY ("doctor_id") REFERENCES "public"."doctor_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -508,9 +452,7 @@ ALTER TABLE "pharmacy_order_items" ADD CONSTRAINT "pharmacy_order_items_prescrip
 ALTER TABLE "pharmacy_order_items" ADD CONSTRAINT "pharmacy_order_items_substituted_medicine_id_fkey" FOREIGN KEY ("substituted_medicine_id") REFERENCES "public"."medicines"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "dispensing_logs" ADD CONSTRAINT "dispensing_logs_dispensed_by_user_id_fkey" FOREIGN KEY ("dispensed_by_user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "dispensing_logs" ADD CONSTRAINT "dispensing_logs_pharmacy_order_item_id_fkey" FOREIGN KEY ("pharmacy_order_item_id") REFERENCES "public"."pharmacy_order_items"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "diagnostic_centers" ADD CONSTRAINT "diagnostic_centers_facility_id_fkey" FOREIGN KEY ("facility_id") REFERENCES "public"."facilities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "diagnostic_orders" ADD CONSTRAINT "diagnostic_orders_consultation_id_fkey" FOREIGN KEY ("consultation_id") REFERENCES "public"."consultations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "diagnostic_orders" ADD CONSTRAINT "diagnostic_orders_diagnostic_center_id_fkey" FOREIGN KEY ("diagnostic_center_id") REFERENCES "public"."diagnostic_centers"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "diagnostic_orders" ADD CONSTRAINT "diagnostic_orders_ordering_doctor_id_fkey" FOREIGN KEY ("ordering_doctor_id") REFERENCES "public"."doctor_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "diagnostic_orders" ADD CONSTRAINT "diagnostic_orders_patient_id_fkey" FOREIGN KEY ("patient_id") REFERENCES "public"."patient_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "diagnostic_order_items" ADD CONSTRAINT "diagnostic_order_items_diagnostic_order_id_fkey" FOREIGN KEY ("diagnostic_order_id") REFERENCES "public"."diagnostic_orders"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -519,10 +461,7 @@ ALTER TABLE "diagnostic_reports" ADD CONSTRAINT "diagnostic_reports_document_id_
 ALTER TABLE "diagnostic_reports" ADD CONSTRAINT "diagnostic_reports_reviewed_by_doctor_id_fkey" FOREIGN KEY ("reviewed_by_doctor_id") REFERENCES "public"."doctor_profiles"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "referrals" ADD CONSTRAINT "referrals_patient_id_fkey" FOREIGN KEY ("patient_id") REFERENCES "public"."patient_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "referrals" ADD CONSTRAINT "referrals_referring_doctor_id_fkey" FOREIGN KEY ("referring_doctor_id") REFERENCES "public"."doctor_profiles"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "referrals" ADD CONSTRAINT "referrals_referring_facility_id_fkey" FOREIGN KEY ("referring_facility_id") REFERENCES "public"."facilities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "referrals" ADD CONSTRAINT "referrals_resulting_appointment_id_fkey" FOREIGN KEY ("resulting_appointment_id") REFERENCES "public"."appointments"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "referrals" ADD CONSTRAINT "referrals_target_department_id_fkey" FOREIGN KEY ("target_department_id") REFERENCES "public"."departments"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "referrals" ADD CONSTRAINT "referrals_target_facility_id_fkey" FOREIGN KEY ("target_facility_id") REFERENCES "public"."facilities"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "patient_profiles" ADD CONSTRAINT "patient_profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "audit_logs" ADD CONSTRAINT "audit_logs_actor_user_id_fkey" FOREIGN KEY ("actor_user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;

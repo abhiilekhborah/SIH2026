@@ -257,123 +257,6 @@
       "policies": {},
       "isRLSEnabled": true
     },
-    "public.facilities": {
-      "name": "facilities",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuid_generate_v4()"
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "address": {
-          "name": "address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "latitude": {
-          "name": "latitude",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "longitude": {
-          "name": "longitude",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contact_phone": {
-          "name": "contact_phone",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "teleconsultation_enabled": {
-          "name": "teleconsultation_enabled",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false,
-          "default": false
-        },
-        "status": {
-          "name": "status",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "'active'"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {},
-      "policies": {},
-      "isRLSEnabled": true
-    },
-    "public.departments": {
-      "name": "departments",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuid_generate_v4()"
-        },
-        "facility_id": {
-          "name": "facility_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "name": {
-          "name": "name",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "departments_facility_id_fkey": {
-          "name": "departments_facility_id_fkey",
-          "tableFrom": "departments",
-          "tableTo": "facilities",
-          "schemaTo": "public",
-          "columnsFrom": [
-            "facility_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {},
-      "policies": {},
-      "isRLSEnabled": true
-    },
     "public.doctor_availability": {
       "name": "doctor_availability",
       "schema": "",
@@ -507,50 +390,10 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
-        },
-        "facility_id": {
-          "name": "facility_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "department_id": {
-          "name": "department_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
       "foreignKeys": {
-        "doctor_profiles_department_id_fkey": {
-          "name": "doctor_profiles_department_id_fkey",
-          "tableFrom": "doctor_profiles",
-          "tableTo": "departments",
-          "schemaTo": "public",
-          "columnsFrom": [
-            "department_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "doctor_profiles_facility_id_fkey": {
-          "name": "doctor_profiles_facility_id_fkey",
-          "tableFrom": "doctor_profiles",
-          "tableTo": "facilities",
-          "schemaTo": "public",
-          "columnsFrom": [
-            "facility_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "doctor_profiles_user_id_fkey": {
           "name": "doctor_profiles_user_id_fkey",
           "tableFrom": "doctor_profiles",
@@ -661,80 +504,6 @@
       "policies": {},
       "isRLSEnabled": true
     },
-    "public.patient_facility_links": {
-      "name": "patient_facility_links",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuid_generate_v4()"
-        },
-        "patient_id": {
-          "name": "patient_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "facility_id": {
-          "name": "facility_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "local_mrn": {
-          "name": "local_mrn",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "first_visit_at": {
-          "name": "first_visit_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false,
-          "default": "CURRENT_TIMESTAMP"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "patient_facility_links_facility_id_fkey": {
-          "name": "patient_facility_links_facility_id_fkey",
-          "tableFrom": "patient_facility_links",
-          "tableTo": "facilities",
-          "schemaTo": "public",
-          "columnsFrom": [
-            "facility_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "patient_facility_links_patient_id_fkey": {
-          "name": "patient_facility_links_patient_id_fkey",
-          "tableFrom": "patient_facility_links",
-          "tableTo": "patient_profiles",
-          "schemaTo": "public",
-          "columnsFrom": [
-            "patient_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {},
-      "policies": {},
-      "isRLSEnabled": true
-    },
     "public.receptionist_profiles": {
       "name": "receptionist_profiles",
       "schema": "",
@@ -751,30 +520,10 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": false
-        },
-        "facility_id": {
-          "name": "facility_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
         }
       },
       "indexes": {},
       "foreignKeys": {
-        "receptionist_profiles_facility_id_fkey": {
-          "name": "receptionist_profiles_facility_id_fkey",
-          "tableFrom": "receptionist_profiles",
-          "tableTo": "facilities",
-          "schemaTo": "public",
-          "columnsFrom": [
-            "facility_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "receptionist_profiles_user_id_fkey": {
           "name": "receptionist_profiles_user_id_fkey",
           "tableFrom": "receptionist_profiles",
@@ -818,18 +567,6 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
-        },
-        "facility_id": {
-          "name": "facility_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "department_id": {
-          "name": "department_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
         },
         "mode": {
           "name": "mode",
@@ -894,20 +631,6 @@
           "onDelete": "set null",
           "onUpdate": "no action"
         },
-        "appointments_department_id_fkey": {
-          "name": "appointments_department_id_fkey",
-          "tableFrom": "appointments",
-          "tableTo": "departments",
-          "schemaTo": "public",
-          "columnsFrom": [
-            "department_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
         "appointments_doctor_id_fkey": {
           "name": "appointments_doctor_id_fkey",
           "tableFrom": "appointments",
@@ -915,20 +638,6 @@
           "schemaTo": "public",
           "columnsFrom": [
             "doctor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "appointments_facility_id_fkey": {
-          "name": "appointments_facility_id_fkey",
-          "tableFrom": "appointments",
-          "tableTo": "facilities",
-          "schemaTo": "public",
-          "columnsFrom": [
-            "facility_id"
           ],
           "columnsTo": [
             "id"
@@ -970,12 +679,6 @@
         },
         "appointment_id": {
           "name": "appointment_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "facility_id": {
-          "name": "facility_id",
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
@@ -1029,20 +732,6 @@
           "schemaTo": "public",
           "columnsFrom": [
             "appointment_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "queue_tokens_facility_id_fkey": {
-          "name": "queue_tokens_facility_id_fkey",
-          "tableFrom": "queue_tokens",
-          "tableTo": "facilities",
-          "schemaTo": "public",
-          "columnsFrom": [
-            "facility_id"
           ],
           "columnsTo": [
             "id"
@@ -2483,61 +2172,6 @@
       "policies": {},
       "isRLSEnabled": true
     },
-    "public.diagnostic_centers": {
-      "name": "diagnostic_centers",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "uuid_generate_v4()"
-        },
-        "facility_id": {
-          "name": "facility_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "accreditation_no": {
-          "name": "accreditation_no",
-          "type": "varchar(100)",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "diagnostic_centers_facility_id_fkey": {
-          "name": "diagnostic_centers_facility_id_fkey",
-          "tableFrom": "diagnostic_centers",
-          "tableTo": "facilities",
-          "schemaTo": "public",
-          "columnsFrom": [
-            "facility_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "diagnostic_centers_facility_id_key": {
-          "columns": [
-            "facility_id"
-          ],
-          "nullsNotDistinct": false,
-          "name": "diagnostic_centers_facility_id_key"
-        }
-      },
-      "checkConstraints": {},
-      "policies": {},
-      "isRLSEnabled": true
-    },
     "public.diagnostic_orders": {
       "name": "diagnostic_orders",
       "schema": "",
@@ -2566,12 +2200,6 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
-        },
-        "diagnostic_center_id": {
-          "name": "diagnostic_center_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
         },
         "status": {
           "name": "status",
@@ -2608,20 +2236,6 @@
             "id"
           ],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "diagnostic_orders_diagnostic_center_id_fkey": {
-          "name": "diagnostic_orders_diagnostic_center_id_fkey",
-          "tableFrom": "diagnostic_orders",
-          "tableTo": "diagnostic_centers",
-          "schemaTo": "public",
-          "columnsFrom": [
-            "diagnostic_center_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "diagnostic_orders_ordering_doctor_id_fkey": {
@@ -2857,24 +2471,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "referring_facility_id": {
-          "name": "referring_facility_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "target_facility_id": {
-          "name": "target_facility_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "target_department_id": {
-          "name": "target_department_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "urgency": {
           "name": "urgency",
           "type": "varchar(20)",
@@ -2946,20 +2542,6 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "referrals_referring_facility_id_fkey": {
-          "name": "referrals_referring_facility_id_fkey",
-          "tableFrom": "referrals",
-          "tableTo": "facilities",
-          "schemaTo": "public",
-          "columnsFrom": [
-            "referring_facility_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
         "referrals_resulting_appointment_id_fkey": {
           "name": "referrals_resulting_appointment_id_fkey",
           "tableFrom": "referrals",
@@ -2972,34 +2554,6 @@
             "id"
           ],
           "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "referrals_target_department_id_fkey": {
-          "name": "referrals_target_department_id_fkey",
-          "tableFrom": "referrals",
-          "tableTo": "departments",
-          "schemaTo": "public",
-          "columnsFrom": [
-            "target_department_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "referrals_target_facility_id_fkey": {
-          "name": "referrals_target_facility_id_fkey",
-          "tableFrom": "referrals",
-          "tableTo": "facilities",
-          "schemaTo": "public",
-          "columnsFrom": [
-            "target_facility_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },

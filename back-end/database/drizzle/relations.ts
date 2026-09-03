@@ -1,5 +1,5 @@
 import { relations } from "drizzle-orm/relations";
-import { roles, userRoles, users, otpVerifications, authSessions, facilities, departments, doctorProfiles, doctorAvailability, pharmacies, pharmacistProfiles, patientFacilityLinks, patientProfiles, receptionistProfiles, appointments, queueTokens, teleconsultationSessions, consultations, documents, medicalRecords, diagnoses, followUps, highRiskAlerts, prescriptions, medicines, prescriptionItems, pharmacyInventory, pharmacyOrders, pharmacyOrderItems, dispensingLogs, diagnosticCenters, diagnosticOrders, diagnosticOrderItems, diagnosticReports, referrals, notifications, auditLogs } from "./schema";
+import { roles, userRoles, users, otpVerifications, authSessions, doctorProfiles, doctorAvailability, pharmacies, pharmacistProfiles, receptionistProfiles, appointments, patientProfiles, queueTokens, teleconsultationSessions, consultations, documents, medicalRecords, diagnoses, followUps, highRiskAlerts, prescriptions, medicines, prescriptionItems, pharmacyInventory, pharmacyOrders, pharmacyOrderItems, dispensingLogs, diagnosticOrders, diagnosticOrderItems, diagnosticReports, referrals, notifications, auditLogs } from "./schema";
 
 export const userRolesRelations = relations(userRoles, ({one}) => ({
 	role: one(roles, {
@@ -46,32 +46,6 @@ export const authSessionsRelations = relations(authSessions, ({one}) => ({
 	}),
 }));
 
-export const departmentsRelations = relations(departments, ({one, many}) => ({
-	facility: one(facilities, {
-		fields: [departments.facilityId],
-		references: [facilities.id]
-	}),
-	doctorProfiles: many(doctorProfiles),
-	appointments: many(appointments),
-	referrals: many(referrals),
-}));
-
-export const facilitiesRelations = relations(facilities, ({many}) => ({
-	departments: many(departments),
-	doctorProfiles: many(doctorProfiles),
-	patientFacilityLinks: many(patientFacilityLinks),
-	receptionistProfiles: many(receptionistProfiles),
-	appointments: many(appointments),
-	queueTokens: many(queueTokens),
-	diagnosticCenters: many(diagnosticCenters),
-	referrals_referringFacilityId: many(referrals, {
-		relationName: "referrals_referringFacilityId_facilities_id"
-	}),
-	referrals_targetFacilityId: many(referrals, {
-		relationName: "referrals_targetFacilityId_facilities_id"
-	}),
-}));
-
 export const doctorAvailabilityRelations = relations(doctorAvailability, ({one}) => ({
 	doctorProfile: one(doctorProfiles, {
 		fields: [doctorAvailability.doctorProfileId],
@@ -81,14 +55,6 @@ export const doctorAvailabilityRelations = relations(doctorAvailability, ({one})
 
 export const doctorProfilesRelations = relations(doctorProfiles, ({one, many}) => ({
 	doctorAvailabilities: many(doctorAvailability),
-	department: one(departments, {
-		fields: [doctorProfiles.departmentId],
-		references: [departments.id]
-	}),
-	facility: one(facilities, {
-		fields: [doctorProfiles.facilityId],
-		references: [facilities.id]
-	}),
 	user: one(users, {
 		fields: [doctorProfiles.userId],
 		references: [users.id]
@@ -120,19 +86,34 @@ export const pharmaciesRelations = relations(pharmacies, ({many}) => ({
 	pharmacyOrders: many(pharmacyOrders),
 }));
 
-export const patientFacilityLinksRelations = relations(patientFacilityLinks, ({one}) => ({
-	facility: one(facilities, {
-		fields: [patientFacilityLinks.facilityId],
-		references: [facilities.id]
-	}),
-	patientProfile: one(patientProfiles, {
-		fields: [patientFacilityLinks.patientId],
-		references: [patientProfiles.id]
+export const receptionistProfilesRelations = relations(receptionistProfiles, ({one}) => ({
+	user: one(users, {
+		fields: [receptionistProfiles.userId],
+		references: [users.id]
 	}),
 }));
 
+export const appointmentsRelations = relations(appointments, ({one, many}) => ({
+	user: one(users, {
+		fields: [appointments.bookedByUserId],
+		references: [users.id]
+	}),
+	doctorProfile: one(doctorProfiles, {
+		fields: [appointments.doctorId],
+		references: [doctorProfiles.id]
+	}),
+	patientProfile: one(patientProfiles, {
+		fields: [appointments.patientId],
+		references: [patientProfiles.id]
+	}),
+	queueTokens: many(queueTokens),
+	teleconsultationSessions: many(teleconsultationSessions),
+	consultations: many(consultations),
+	followUps: many(followUps),
+	referrals: many(referrals),
+}));
+
 export const patientProfilesRelations = relations(patientProfiles, ({one, many}) => ({
-	patientFacilityLinks: many(patientFacilityLinks),
 	appointments: many(appointments),
 	consultations: many(consultations),
 	documents: many(documents),
@@ -149,53 +130,10 @@ export const patientProfilesRelations = relations(patientProfiles, ({one, many})
 	}),
 }));
 
-export const receptionistProfilesRelations = relations(receptionistProfiles, ({one}) => ({
-	facility: one(facilities, {
-		fields: [receptionistProfiles.facilityId],
-		references: [facilities.id]
-	}),
-	user: one(users, {
-		fields: [receptionistProfiles.userId],
-		references: [users.id]
-	}),
-}));
-
-export const appointmentsRelations = relations(appointments, ({one, many}) => ({
-	user: one(users, {
-		fields: [appointments.bookedByUserId],
-		references: [users.id]
-	}),
-	department: one(departments, {
-		fields: [appointments.departmentId],
-		references: [departments.id]
-	}),
-	doctorProfile: one(doctorProfiles, {
-		fields: [appointments.doctorId],
-		references: [doctorProfiles.id]
-	}),
-	facility: one(facilities, {
-		fields: [appointments.facilityId],
-		references: [facilities.id]
-	}),
-	patientProfile: one(patientProfiles, {
-		fields: [appointments.patientId],
-		references: [patientProfiles.id]
-	}),
-	queueTokens: many(queueTokens),
-	teleconsultationSessions: many(teleconsultationSessions),
-	consultations: many(consultations),
-	followUps: many(followUps),
-	referrals: many(referrals),
-}));
-
 export const queueTokensRelations = relations(queueTokens, ({one}) => ({
 	appointment: one(appointments, {
 		fields: [queueTokens.appointmentId],
 		references: [appointments.id]
-	}),
-	facility: one(facilities, {
-		fields: [queueTokens.facilityId],
-		references: [facilities.id]
 	}),
 }));
 
@@ -395,22 +333,10 @@ export const dispensingLogsRelations = relations(dispensingLogs, ({one}) => ({
 	}),
 }));
 
-export const diagnosticCentersRelations = relations(diagnosticCenters, ({one, many}) => ({
-	facility: one(facilities, {
-		fields: [diagnosticCenters.facilityId],
-		references: [facilities.id]
-	}),
-	diagnosticOrders: many(diagnosticOrders),
-}));
-
 export const diagnosticOrdersRelations = relations(diagnosticOrders, ({one, many}) => ({
 	consultation: one(consultations, {
 		fields: [diagnosticOrders.consultationId],
 		references: [consultations.id]
-	}),
-	diagnosticCenter: one(diagnosticCenters, {
-		fields: [diagnosticOrders.diagnosticCenterId],
-		references: [diagnosticCenters.id]
 	}),
 	doctorProfile: one(doctorProfiles, {
 		fields: [diagnosticOrders.orderingDoctorId],
@@ -455,23 +381,9 @@ export const referralsRelations = relations(referrals, ({one}) => ({
 		fields: [referrals.referringDoctorId],
 		references: [doctorProfiles.id]
 	}),
-	facility_referringFacilityId: one(facilities, {
-		fields: [referrals.referringFacilityId],
-		references: [facilities.id],
-		relationName: "referrals_referringFacilityId_facilities_id"
-	}),
 	appointment: one(appointments, {
 		fields: [referrals.resultingAppointmentId],
 		references: [appointments.id]
-	}),
-	department: one(departments, {
-		fields: [referrals.targetDepartmentId],
-		references: [departments.id]
-	}),
-	facility_targetFacilityId: one(facilities, {
-		fields: [referrals.targetFacilityId],
-		references: [facilities.id],
-		relationName: "referrals_targetFacilityId_facilities_id"
 	}),
 }));
 

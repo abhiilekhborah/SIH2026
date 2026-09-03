@@ -1,4 +1,4 @@
-import { pgTable, unique, uuid, varchar, foreignKey, text, timestamp, boolean, integer, doublePrecision, time, numeric, date, jsonb, bigint } from "drizzle-orm/pg-core"
+import { pgTable, unique, uuid, varchar, foreignKey, text, timestamp, boolean, integer, time, numeric, date, jsonb, bigint } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 
@@ -61,30 +61,6 @@ export const authSessions = pgTable("auth_sessions", {
 		}).onDelete("cascade"),
 ]);
 
-export const facilities = pgTable("facilities", {
-	id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
-	name: varchar({ length: 255 }).notNull(),
-	type: varchar({ length: 50 }).notNull(),
-	address: text(),
-	latitude: doublePrecision(),
-	longitude: doublePrecision(),
-	contactPhone: varchar("contact_phone", { length: 20 }),
-	teleconsultationEnabled: boolean("teleconsultation_enabled").default(false),
-	status: varchar({ length: 50 }).default('active'),
-});
-
-export const departments = pgTable("departments", {
-	id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
-	facilityId: uuid("facility_id").notNull(),
-	name: varchar({ length: 100 }).notNull(),
-}, (table) => [
-	foreignKey({
-			columns: [table.facilityId],
-			foreignColumns: [facilities.id],
-			name: "departments_facility_id_fkey"
-		}).onDelete("cascade"),
-]);
-
 export const doctorAvailability = pgTable("doctor_availability", {
 	id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
 	doctorProfileId: uuid("doctor_profile_id").notNull(),
@@ -111,19 +87,7 @@ export const doctorProfiles = pgTable("doctor_profiles", {
 	consultationFee: numeric("consultation_fee", { precision: 10, scale:  2 }).default('0.00'),
 	name: varchar(),
 	userId: uuid("user_id"),
-	facilityId: uuid("facility_id"),
-	departmentId: uuid("department_id"),
 }, (table) => [
-	foreignKey({
-			columns: [table.departmentId],
-			foreignColumns: [departments.id],
-			name: "doctor_profiles_department_id_fkey"
-		}),
-	foreignKey({
-			columns: [table.facilityId],
-			foreignColumns: [facilities.id],
-			name: "doctor_profiles_facility_id_fkey"
-		}),
 	foreignKey({
 			columns: [table.userId],
 			foreignColumns: [users.id],
@@ -152,35 +116,10 @@ export const pharmacistProfiles = pgTable("pharmacist_profiles", {
 	unique("pharmacist_profiles_license_no_key").on(table.licenseNo),
 ]);
 
-export const patientFacilityLinks = pgTable("patient_facility_links", {
-	id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
-	patientId: uuid("patient_id").notNull(),
-	facilityId: uuid("facility_id").notNull(),
-	localMrn: varchar("local_mrn", { length: 100 }),
-	firstVisitAt: timestamp("first_visit_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [
-	foreignKey({
-			columns: [table.facilityId],
-			foreignColumns: [facilities.id],
-			name: "patient_facility_links_facility_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.patientId],
-			foreignColumns: [patientProfiles.id],
-			name: "patient_facility_links_patient_id_fkey"
-		}).onDelete("cascade"),
-]);
-
 export const receptionistProfiles = pgTable("receptionist_profiles", {
 	id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
 	userId: uuid("user_id"),
-	facilityId: uuid("facility_id"),
 }, (table) => [
-	foreignKey({
-			columns: [table.facilityId],
-			foreignColumns: [facilities.id],
-			name: "receptionist_profiles_facility_id_fkey"
-		}),
 	foreignKey({
 			columns: [table.userId],
 			foreignColumns: [users.id],
@@ -192,8 +131,6 @@ export const appointments = pgTable("appointments", {
 	id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
 	patientId: uuid("patient_id").notNull(),
 	doctorId: uuid("doctor_id").notNull(),
-	facilityId: uuid("facility_id").notNull(),
-	departmentId: uuid("department_id"),
 	mode: varchar({ length: 20 }).default('in_person'),
 	scheduledAt: timestamp("scheduled_at", { withTimezone: true, mode: 'string' }).notNull(),
 	status: varchar({ length: 30 }).default('booked'),
@@ -208,19 +145,9 @@ export const appointments = pgTable("appointments", {
 			name: "appointments_booked_by_user_id_fkey"
 		}).onDelete("set null"),
 	foreignKey({
-			columns: [table.departmentId],
-			foreignColumns: [departments.id],
-			name: "appointments_department_id_fkey"
-		}).onDelete("set null"),
-	foreignKey({
 			columns: [table.doctorId],
 			foreignColumns: [doctorProfiles.id],
 			name: "appointments_doctor_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.facilityId],
-			foreignColumns: [facilities.id],
-			name: "appointments_facility_id_fkey"
 		}).onDelete("cascade"),
 	foreignKey({
 			columns: [table.patientId],
@@ -232,7 +159,6 @@ export const appointments = pgTable("appointments", {
 export const queueTokens = pgTable("queue_tokens", {
 	id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
 	appointmentId: uuid("appointment_id").notNull(),
-	facilityId: uuid("facility_id").notNull(),
 	tokenNumber: integer("token_number").notNull(),
 	queueDate: date("queue_date").notNull(),
 	status: varchar({ length: 30 }).default('waiting'),
@@ -244,11 +170,6 @@ export const queueTokens = pgTable("queue_tokens", {
 			columns: [table.appointmentId],
 			foreignColumns: [appointments.id],
 			name: "queue_tokens_appointment_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.facilityId],
-			foreignColumns: [facilities.id],
-			name: "queue_tokens_facility_id_fkey"
 		}).onDelete("cascade"),
 	unique("queue_tokens_appointment_id_key").on(table.appointmentId),
 ]);
@@ -595,25 +516,11 @@ export const dispensingLogs = pgTable("dispensing_logs", {
 		}).onDelete("cascade"),
 ]);
 
-export const diagnosticCenters = pgTable("diagnostic_centers", {
-	id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
-	facilityId: uuid("facility_id").notNull(),
-	accreditationNo: varchar("accreditation_no", { length: 100 }),
-}, (table) => [
-	foreignKey({
-			columns: [table.facilityId],
-			foreignColumns: [facilities.id],
-			name: "diagnostic_centers_facility_id_fkey"
-		}).onDelete("cascade"),
-	unique("diagnostic_centers_facility_id_key").on(table.facilityId),
-]);
-
 export const diagnosticOrders = pgTable("diagnostic_orders", {
 	id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
 	consultationId: uuid("consultation_id"),
 	patientId: uuid("patient_id").notNull(),
 	orderingDoctorId: uuid("ordering_doctor_id").notNull(),
-	diagnosticCenterId: uuid("diagnostic_center_id"),
 	status: varchar({ length: 30 }).default('requested'),
 	clinicalNotes: text("clinical_notes"),
 	orderedAt: timestamp("ordered_at", { withTimezone: true, mode: 'string' }).default(sql`CURRENT_TIMESTAMP`),
@@ -623,11 +530,6 @@ export const diagnosticOrders = pgTable("diagnostic_orders", {
 			foreignColumns: [consultations.id],
 			name: "diagnostic_orders_consultation_id_fkey"
 		}).onDelete("cascade"),
-	foreignKey({
-			columns: [table.diagnosticCenterId],
-			foreignColumns: [diagnosticCenters.id],
-			name: "diagnostic_orders_diagnostic_center_id_fkey"
-		}).onDelete("set null"),
 	foreignKey({
 			columns: [table.orderingDoctorId],
 			foreignColumns: [doctorProfiles.id],
@@ -686,9 +588,6 @@ export const referrals = pgTable("referrals", {
 	id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
 	patientId: uuid("patient_id").notNull(),
 	referringDoctorId: uuid("referring_doctor_id").notNull(),
-	referringFacilityId: uuid("referring_facility_id").notNull(),
-	targetFacilityId: uuid("target_facility_id").notNull(),
-	targetDepartmentId: uuid("target_department_id"),
 	urgency: varchar({ length: 20 }).default('routine'),
 	reason: text().notNull(),
 	status: varchar({ length: 30 }).default('sent'),
@@ -707,25 +606,10 @@ export const referrals = pgTable("referrals", {
 			name: "referrals_referring_doctor_id_fkey"
 		}).onDelete("cascade"),
 	foreignKey({
-			columns: [table.referringFacilityId],
-			foreignColumns: [facilities.id],
-			name: "referrals_referring_facility_id_fkey"
-		}).onDelete("cascade"),
-	foreignKey({
 			columns: [table.resultingAppointmentId],
 			foreignColumns: [appointments.id],
 			name: "referrals_resulting_appointment_id_fkey"
 		}).onDelete("set null"),
-	foreignKey({
-			columns: [table.targetDepartmentId],
-			foreignColumns: [departments.id],
-			name: "referrals_target_department_id_fkey"
-		}).onDelete("set null"),
-	foreignKey({
-			columns: [table.targetFacilityId],
-			foreignColumns: [facilities.id],
-			name: "referrals_target_facility_id_fkey"
-		}).onDelete("cascade"),
 ]);
 
 export const notifications = pgTable("notifications", {
