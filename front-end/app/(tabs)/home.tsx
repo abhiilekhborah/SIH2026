@@ -2,6 +2,7 @@ import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
 import { useNotifications } from '@/components/notification-context';
 import { useUser } from '@clerk/expo';
+import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useEffect, useRef } from 'react';
 import {
@@ -119,6 +120,7 @@ export default function Home() {
   const { openMenu }          = useSideMenu();
   const { openNotifications } = useNotifications();
   const { user }              = useUser();
+  const router                = useRouter();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
@@ -289,7 +291,11 @@ export default function Home() {
 
           <View style={styles.grid}>
             {quickActions.map(a => (
-              <GlassCard key={a.id} style={styles.actionCard} onPress={() => {}}>
+              <GlassCard 
+                key={a.id} 
+                style={styles.actionCard} 
+                onPress={() => router.push(`/(tabs)/${a.id}` as any)}
+              >
                 <View style={styles.actionTop}>
                   <View style={[styles.actionIconBg, { backgroundColor: a.bg }]}>
                     <Ionicons name={a.icon} size={22} color={a.color} />
