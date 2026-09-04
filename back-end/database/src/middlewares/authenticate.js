@@ -42,6 +42,9 @@ export const userauthenticate = async (req, res, next) => {
 
     const email = clerkUser.primaryEmailAddress?.emailAddress ?? null;
 
+    
+    
+
     const [created] = await db
       .insert(users)
       .values({
