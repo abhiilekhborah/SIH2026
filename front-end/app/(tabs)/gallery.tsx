@@ -260,11 +260,19 @@ export default function Gallery() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      {/* Light gradient backdrop */}
+      <View style={StyleSheet.absoluteFillObject}>
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#F0FAFA' }]} />
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 220, backgroundColor: 'rgba(0,181,173,0.10)', borderBottomLeftRadius: 40, borderBottomRightRadius: 40 }} />
+      </View>
+
       <AppHeader
         title="Gallery"
         showMenu={true}
         showNotification={false}
         onPressMenu={openMenu}
+        style={{ backgroundColor: 'transparent' }}
+        buttonBackgroundColor="rgba(0,181,173,0.12)"
       />
 
       <FlatList
@@ -449,13 +457,13 @@ export default function Gallery() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
-  listContent: { paddingHorizontal: 20, paddingBottom: 24 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#111827', marginTop: 20, marginBottom: 12 },
+  safeArea: { flex: 1, backgroundColor: '#F0FAFA' },
+  listContent: { paddingHorizontal: 20, paddingBottom: 80 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: '#0D3349', marginTop: 20, marginBottom: 12 },
   uploadRow: { flexDirection: 'row', gap: 12, marginBottom: 8 },
-  uploadButton: { flex: 1, alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 14, borderWidth: 1, borderColor: '#E5E7EB', paddingVertical: 20 },
+  uploadButton: { flex: 1, alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.75)', borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,181,173,0.20)', paddingVertical: 20 },
   uploadIcon: { width: 56, height: 56, borderRadius: 16, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  uploadLabel: { fontSize: 14, fontWeight: '600', color: '#374151' },
+  uploadLabel: { fontSize: 14, fontWeight: '600', color: '#0D3349' },
   previewStrip: { marginBottom: 8 },
   previewThumb: { width: 64, height: 64, borderRadius: 10, marginRight: 8, backgroundColor: '#F3F4F6' },
   fieldLabel: { fontSize: 13, fontWeight: '600', color: '#374151', marginTop: 12, marginBottom: 6 },
