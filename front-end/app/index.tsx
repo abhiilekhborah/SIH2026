@@ -26,7 +26,7 @@ export default function GetStartedScreen() {
   // This has to be a returned <Redirect>, not router.replace(): calling
   // replace() here would navigate while React is still rendering.
   if (isSignedIn) {
-    return <Redirect href="/home" />;
+    return <Redirect href="/(tab3)/home3" />;
   }
 
   function handleGetStarted() {

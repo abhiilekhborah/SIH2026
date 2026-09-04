@@ -49,7 +49,7 @@ export default function LoginScreen() {
       if (attempt.status === 'complete') {
         // The password was right, so setActive is what logs the user in.
         await setActive({ session: attempt.createdSessionId });
-        router.replace('/role');
+        router.replace('/(tab3)/home3' as any);
       } else {
         // Clerk wants one more step from this account (2FA, password reset, ...).
         Alert.alert('Incomplete', 'Sign in did not finish.');
@@ -76,7 +76,7 @@ export default function LoginScreen() {
       if (createdSessionId && setActiveSSO) {
         // Google gave us a finished session, so log the user in.
         await setActiveSSO({ session: createdSessionId });
-        router.replace('/role');
+        router.replace('/(tab3)/home3' as any);
       }
       // If there is no createdSessionId the user closed the popup, so do nothing.
     } catch (err: any) {
