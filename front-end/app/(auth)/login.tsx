@@ -1,5 +1,4 @@
 import { useSSO } from '@clerk/expo';
-import { useSignIn } from '@clerk/expo/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import * as AuthSession from 'expo-auth-session';
 import { Image } from 'expo-image';
@@ -25,7 +24,6 @@ const DARK_BLUE = '#123E9E'; // Sign in button
 const BORDER = '#E5E7EB';
 
 export default function LoginScreen() {
-  const { isLoaded, signIn, setActive } = useSignIn();
   const { startSSOFlow } = useSSO();
   const router = useRouter();
 
@@ -33,6 +31,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+<<<<<<< HEAD
   // Email + password sign in: check the password, then start the session.
   const handleSignIn = async () => {
     // Clerk hydrates in the background, so wait until it is ready.
@@ -60,23 +59,32 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
+=======
+  function handleSignIn() {
+    // TODO: sign the user in with Clerk here.
+    router.replace('/home')
+  }
+>>>>>>> 7215182176c8ff6f58b75cb7a75b1a7f4f36c618
 
   // Google sign in: opens Google in a browser popup, then starts the session.
   const handleGoogle = async () => {
     setLoading(true);
 
     try {
-      // The SSO flow hands back its own setActive, so rename it to avoid a
-      // clash with the setActive we already took from useSignIn above.
-      const { createdSessionId, setActive: setActiveSSO } = await startSSOFlow({
+      const { createdSessionId, setActive } = await startSSOFlow({
         strategy: 'oauth_google',
         redirectUrl: AuthSession.makeRedirectUri(),
       });
 
-      if (createdSessionId && setActiveSSO) {
+      if (createdSessionId && setActive) {
         // Google gave us a finished session, so log the user in.
+<<<<<<< HEAD
         await setActiveSSO({ session: createdSessionId });
         router.replace('/(tab3)/home3' as any);
+=======
+        await setActive({ session: createdSessionId });
+        router.replace('/home');
+>>>>>>> 7215182176c8ff6f58b75cb7a75b1a7f4f36c618
       }
       // If there is no createdSessionId the user closed the popup, so do nothing.
     } catch (err: any) {
@@ -137,11 +145,7 @@ export default function LoginScreen() {
 
         <Text style={styles.forgot}>Forgot your password?</Text>
 
-        <Pressable
-          style={styles.signInButton}
-          onPress={handleSignIn}
-          disabled={loading}
-        >
+        <Pressable style={styles.signInButton} onPress={handleSignIn}>
           <Text style={styles.signInText}>Sign in</Text>
           <Ionicons name="arrow-forward" size={20} color="#FFFFFF" />
         </Pressable>

@@ -1,9 +1,16 @@
+import '../polyfills'
 import { ClerkProvider } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
 import { Slot } from 'expo-router'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
+<<<<<<< HEAD
 import { StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+=======
+import { NotificationProvider } from '@/components/notification-context'
+
+// Initialize LiveKit WebRTC globals (must be called once before any LiveKit usage)
+>>>>>>> 7215182176c8ff6f58b75cb7a75b1a7f4f36c618
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
 
@@ -33,7 +40,9 @@ export default function RootLayout() {
     // Required once at the root so gestures (the slide button) work on Android.
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
-        <Slot />
+        <NotificationProvider>
+          <Slot />
+        </NotificationProvider>
       </ClerkProvider>
     </GestureHandlerRootView>
   )

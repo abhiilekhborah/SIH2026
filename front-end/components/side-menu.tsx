@@ -8,6 +8,7 @@ import {
   Dimensions,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -121,37 +122,17 @@ export function SideMenu({ visible, onClose }: SideMenuProps) {
           </View>
 
           {/* Navigation Items */}
-          <View style={styles.menuList}>
+          <ScrollView
+            style={styles.menuListScroll}
+            contentContainerStyle={styles.menuList}
+            showsVerticalScrollIndicator={false}
+          >
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => handleNavigate('/home')}
+              onPress={() => handleNavigate('/profile')}
             >
-              <Ionicons name="home-outline" size={22} color="#1A66E8" />
-              <Text style={styles.menuText}>Home</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => handleNavigate('/quickcare')}
-            >
-              <Ionicons name="notifications-outline" size={22} color="#1A66E8" />
-              <Text style={styles.menuText}>QuickCare</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => handleNavigate('/emergency')}
-            >
-              <Ionicons name="map-outline" size={22} color="#1A66E8" />
-              <Text style={styles.menuText}>Emergency</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => handleNavigate('/history')}
-            >
-              <Ionicons name="document-text-outline" size={22} color="#1A66E8" />
-              <Text style={styles.menuText}>Medical History</Text>
+              <Ionicons name="person-outline" size={22} color="#1A66E8" />
+              <Text style={styles.menuText}>Profile</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -164,12 +145,44 @@ export function SideMenu({ visible, onClose }: SideMenuProps) {
 
             <TouchableOpacity
               style={styles.menuItem}
-              onPress={() => handleNavigate('/profile')}
+              onPress={() => handleNavigate('/history')}
             >
-              <Ionicons name="person-outline" size={22} color="#1A66E8" />
-              <Text style={styles.menuText}>Profile & Settings</Text>
+              <Ionicons name="document-text-outline" size={22} color="#1A66E8" />
+              <Text style={styles.menuText}>Health Reports</Text>
             </TouchableOpacity>
-          </View>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleNavigate('/referrals')}
+            >
+              <Ionicons name="people-outline" size={22} color="#1A66E8" />
+              <Text style={styles.menuText}>Referrals</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleNavigate('/about')}
+            >
+              <Ionicons name="information-circle-outline" size={22} color="#1A66E8" />
+              <Text style={styles.menuText}>About Us</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleNavigate('/contact')}
+            >
+              <Ionicons name="call-outline" size={22} color="#1A66E8" />
+              <Text style={styles.menuText}>Contact Us</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => handleNavigate('/settings')}
+            >
+              <Ionicons name="settings-outline" size={22} color="#1A66E8" />
+              <Text style={styles.menuText}>Settings</Text>
+            </TouchableOpacity>
+          </ScrollView>
 
           {/* Footer Section */}
           <View style={styles.footer}>
@@ -247,10 +260,13 @@ const styles = StyleSheet.create({
   closeButton: {
     padding: 6,
   },
-  menuList: {
+  menuListScroll: {
     flex: 1,
-    marginTop: 24,
-    gap: 8,
+    marginTop: 12,
+  },
+  menuList: {
+    paddingVertical: 8,
+    gap: 4,
   },
   menuItem: {
     flexDirection: 'row',
