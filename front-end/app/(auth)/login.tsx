@@ -31,10 +31,40 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+<<<<<<< HEAD
+  // Email + password sign in: check the password, then start the session.
+  const handleSignIn = async () => {
+    // Clerk hydrates in the background, so wait until it is ready.
+    if (!isLoaded) return;
+    setLoading(true);
+
+    try {
+      // "identifier" and not "emailAddress": Clerk also accepts a username here.
+      const attempt = await signIn.create({
+        identifier: email,
+        password,
+      });
+
+      if (attempt.status === 'complete') {
+        // The password was right, so setActive is what logs the user in.
+        await setActive({ session: attempt.createdSessionId });
+        router.replace('/(tab3)/home3' as any);
+      } else {
+        // Clerk wants one more step from this account (2FA, password reset, ...).
+        Alert.alert('Incomplete', 'Sign in did not finish.');
+      }
+    } catch (err: any) {
+      Alert.alert('Sign in failed', err.errors?.[0]?.message ?? 'Try again');
+    } finally {
+      setLoading(false);
+    }
+  };
+=======
   function handleSignIn() {
     // TODO: sign the user in with Clerk here.
     router.replace('/home')
   }
+>>>>>>> 7215182176c8ff6f58b75cb7a75b1a7f4f36c618
 
   // Google sign in: opens Google in a browser popup, then starts the session.
   const handleGoogle = async () => {
@@ -48,8 +78,13 @@ export default function LoginScreen() {
 
       if (createdSessionId && setActive) {
         // Google gave us a finished session, so log the user in.
+<<<<<<< HEAD
+        await setActiveSSO({ session: createdSessionId });
+        router.replace('/(tab3)/home3' as any);
+=======
         await setActive({ session: createdSessionId });
         router.replace('/home');
+>>>>>>> 7215182176c8ff6f58b75cb7a75b1a7f4f36c618
       }
       // If there is no createdSessionId the user closed the popup, so do nothing.
     } catch (err: any) {

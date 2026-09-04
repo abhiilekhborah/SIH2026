@@ -2,5 +2,8 @@ export * from './app-header';
 export * from './get-started-button';
 export * from './hamburger-button';
 export * from './notification-button';
+export * from './notification-context';
+export * from './notification-panel';
+export * from './role-card';
 export * from './side-menu';
 export * from './side-menu-context';
