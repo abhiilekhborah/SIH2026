@@ -71,7 +71,7 @@ export default function SignUpScreen() {
 
       if (attempt.status === 'complete') {
         await setActive({ session: attempt.createdSessionId });
-        router.replace('/role');
+        router.replace('/(tab3)/home3' as any);
       } else {
         Alert.alert('Incomplete', 'Verification did not finish.');
       }
@@ -97,7 +97,7 @@ export default function SignUpScreen() {
       if (createdSessionId && setActiveSSO) {
         // Google gave us a finished session, so log the user in.
         await setActiveSSO({ session: createdSessionId });
-        router.replace('/role');
+        router.replace('/(tab3)/home3' as any);
       }
       // If there is no createdSessionId the user closed the popup, so do nothing.
     } catch (err: any) {
