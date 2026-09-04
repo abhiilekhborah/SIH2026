@@ -4,7 +4,12 @@ import { useNotifications } from '@/components/notification-context';
 import { useUser } from '@clerk/expo';
 import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
+<<<<<<< HEAD
 import React, { useState, useEffect, useRef } from 'react';
+=======
+import React, { useState } from 'react';
+import { useRouter } from 'expo-router';
+>>>>>>> dbbc990dbdaad075c587cc2194bee2672c08d3fc
 import {
   Animated,
   Dimensions,
@@ -117,11 +122,18 @@ function StatBadge({ label, value, unit, color }: { label: string; value: string
 
 // ─── Home ─────────────────────────────────────────────────────────────────────
 export default function Home() {
+<<<<<<< HEAD
   const { openMenu }          = useSideMenu();
   const { openNotifications } = useNotifications();
   const { user }              = useUser();
   const router                = useRouter();
 
+=======
+  const { openMenu } = useSideMenu();
+  const { user } = useUser();
+  const router = useRouter();
+  const [unreadNotifications, setUnreadNotifications] = useState(3);
+>>>>>>> dbbc990dbdaad075c587cc2194bee2672c08d3fc
   const [searchQuery, setSearchQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
@@ -359,9 +371,40 @@ export default function Home() {
                 <Text style={styles.aiSub}>Ask me anything about your health. Available 24/7.</Text>
               </View>
             </View>
+<<<<<<< HEAD
             <View style={styles.aiChip}>
               <Ionicons name="chatbubble-ellipses-outline" size={14} color={C.purple1} style={{ marginRight: 5 }} />
               <Text style={[styles.aiChipTxt, { color: C.purple1 }]}>Start a conversation →</Text>
+=======
+
+            <Text style={styles.cardTitle}>Appointments</Text>
+            <Text style={styles.cardSubtitle}>Schedule visit</Text>
+          </TouchableOpacity>
+
+          {/* Consultation */}
+          <TouchableOpacity style={styles.card} activeOpacity={0.8} onPress={() => router.push('/(tabs)/consultation' as any)}>
+            <View style={styles.cardTop}>
+              <View
+                style={[
+                  styles.iconContainer,
+                  { backgroundColor: '#FEE2E2' },
+                ]}
+              >
+                <Ionicons
+                  name="medical-outline"
+                  size={24}
+                  color="#DC2626"
+                />
+              </View>
+
+              <View style={styles.arrowButton}>
+                <Ionicons
+                  name="arrow-forward"
+                  size={16}
+                  color="#2563EB"
+                />
+              </View>
+>>>>>>> dbbc990dbdaad075c587cc2194bee2672c08d3fc
             </View>
             <View style={[styles.glowStrip, { backgroundColor: C.purple1 }]} />
           </GlassCard>

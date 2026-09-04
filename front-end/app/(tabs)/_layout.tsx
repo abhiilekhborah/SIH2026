@@ -8,6 +8,7 @@ import { View, Text, StyleSheet, TouchableOpacity, Platform } from "react-native
 export default function TabsLayout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
+<<<<<<< HEAD
   return (
     <SideMenuContext.Provider value={{ openMenu: () => setIsMenuOpen(true) }}>
       <Tabs
@@ -75,6 +76,56 @@ export default function TabsLayout() {
 
       <SideMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
     </SideMenuContext.Provider>
+=======
+  const [isMenuOpen,setIsMenuOpen] = useState(false)
+  return( 
+    <SideMenuContext.Provider value = {{openMenu: () => setIsMenuOpen(true)}}>
+  
+  <Tabs
+    screenOptions={{
+      
+      tabBarActiveTintColor: "#00F0FF",
+      tabBarInactiveTintColor: "#6E8294",
+      headerShown:false,
+      
+    }}>
+    <Tabs.Screen name = "home" options = {{
+      title : "Home",
+      tabBarIcon: ({ color, size, focused }) => (
+        <Ionicons name={focused ? "home" : "home-outline"} size={size} color={color} />
+      ),
+    }}/>
+    <Tabs.Screen name = "quickcare" options = {{
+      title : "QuickCare",
+      tabBarIcon: ({ color, size, focused }) => (
+        <Ionicons name={focused ? "notifications" : "notifications-outline"} size={size} color={color} />
+      ),
+    }}/>
+    <Tabs.Screen name = "emergency" options = {{
+      title : "Emergency",
+      tabBarIcon: ({ color, size, focused }) => (
+        <Ionicons name={focused ? "map" : "map-outline"} size={size} color={color} />
+      ),
+    }}/>
+    <Tabs.Screen name = "history" options = {{
+      title : "History",
+      tabBarIcon: ({ color, size, focused }) => (
+        <Ionicons name={focused ? "document-text" : "document-text-outline"} size={size} color={color} />
+      ),
+    }}/>
+    <Tabs.Screen name = "gallery" options = {{ href: null }} />
+    <Tabs.Screen name = "consultation" options = {{ href: null }} />
+    <Tabs.Screen name = "profile" options = {{
+      title : "Profile",
+      tabBarIcon: ({ color, size, focused }) => (
+        <Ionicons name={focused ? "settings" : "settings-outline"} size={size} color={color} />
+      ),
+    }}/>
+  </Tabs>
+  
+  <SideMenu visible={isMenuOpen} onClose={() => setIsMenuOpen(false)} />
+  </SideMenuContext.Provider>
+>>>>>>> dbbc990dbdaad075c587cc2194bee2672c08d3fc
   );
 }
 
