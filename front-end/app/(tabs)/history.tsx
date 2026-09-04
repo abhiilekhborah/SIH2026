@@ -1,5 +1,6 @@
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
+import { useNotifications } from '@/components/notification-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useCallback } from 'react';
 import {
@@ -365,7 +366,7 @@ const listStyles = StyleSheet.create({
   backButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#111827', flex: 1, textAlign: 'center' },
   count: { fontSize: 13, color: '#6B7280', paddingHorizontal: 20, marginBottom: 8 },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 80 },
   card: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 14,
     borderWidth: 1, borderColor: '#E2E8F0', padding: 16, marginBottom: 10,
@@ -525,7 +526,7 @@ const detailStyles = StyleSheet.create({
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 12 },
   backButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: '#F3F4F6', alignItems: 'center', justifyContent: 'center' },
   headerTitle: { fontSize: 17, fontWeight: '700', color: '#111827', flex: 1, textAlign: 'center' },
-  scrollContent: { paddingHorizontal: 20, paddingBottom: 24 },
+  scrollContent: { paddingHorizontal: 20, paddingBottom: 80 },
   section: { backgroundColor: '#F8FAFC', borderRadius: 14, borderWidth: 1, borderColor: '#E2E8F0', padding: 16, gap: 12 },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   label: { fontSize: 13, color: '#6B7280', flex: 1 },
@@ -556,9 +557,7 @@ export default function History() {
   const [selectedCategory, setSelectedCategory] = useState<CategoryId | null>(null);
   const [selectedItem, setSelectedItem] = useState<any>(null);
 
-  const handleOpenNotifications = useCallback(() => {
-    Alert.alert('Notifications', 'Medical history notifications');
-  }, []);
+  const { openNotifications } = useNotifications();
 
   const getCategoryCount = (id: CategoryId): number => {
     if (id === 'consultations') return MOCK_CONSULTATIONS.length;
@@ -606,13 +605,21 @@ export default function History() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
+      {/* Light gradient backdrop */}
+      <View style={StyleSheet.absoluteFillObject}>
+        <View style={styles.bgLight} />
+        <View style={styles.bgTealTop} />
+      </View>
+
       <AppHeader
-        title="History"
+        title="Medical History"
         showMenu={true}
         showNotification={true}
         onPressMenu={openMenu}
-        onPressNotification={handleOpenNotifications}
-        badgeCount={0}
+        onPressNotification={openNotifications}
+        badgeCount={2}
+        style={styles.header}
+        buttonBackgroundColor="rgba(0,181,173,0.12)"
       />
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -670,22 +677,25 @@ export default function History() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
-  scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 24 },
+  safeArea: { flex: 1, backgroundColor: '#F0FAFA' },
+  bgLight:   { ...StyleSheet.absoluteFillObject, backgroundColor: '#F0FAFA' },
+  bgTealTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 220, backgroundColor: 'rgba(0,181,173,0.10)', borderBottomLeftRadius: 40, borderBottomRightRadius: 40 },
+  header:    { backgroundColor: 'transparent' },
+  scrollContent: { paddingHorizontal: 20, paddingTop: 4, paddingBottom: 80 },
   searchRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
   searchContainer: {
-    flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFC',
-    borderRadius: 14, borderWidth: 1, borderColor: '#E5E7EB', paddingHorizontal: 14, height: 48,
+    flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.75)',
+    borderRadius: 14, borderWidth: 1, borderColor: 'rgba(0,181,173,0.20)', paddingHorizontal: 14, height: 48,
   },
   searchIcon: { marginRight: 10 },
-  searchInput: { flex: 1, height: '100%', fontSize: 15, color: '#111827' },
+  searchInput: { flex: 1, height: '100%', fontSize: 15, color: '#0D3349' },
   filterButton: {
-    width: 48, height: 48, borderRadius: 14, backgroundColor: '#EFF6FF',
-    borderWidth: 1, borderColor: '#BFDBFE', alignItems: 'center', justifyContent: 'center',
+    width: 48, height: 48, borderRadius: 14, backgroundColor: 'rgba(0,181,173,0.10)',
+    borderWidth: 1, borderColor: 'rgba(0,181,173,0.25)', alignItems: 'center', justifyContent: 'center',
   },
   categoryCard: {
-    flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC',
-    borderRadius: 16, borderWidth: 1, borderColor: '#E2E8F0', padding: 16, marginBottom: 12,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.80)',
+    borderRadius: 16, borderWidth: 1, borderColor: 'rgba(0,181,173,0.18)', padding: 16, marginBottom: 12,
   },
   categoryLeft: { flex: 1, flexDirection: 'row', alignItems: 'flex-start', gap: 14 },
   categoryIconWrap: {
@@ -693,10 +703,10 @@ const styles = StyleSheet.create({
   },
   categoryEmoji: { fontSize: 24 },
   categoryInfo: { flex: 1 },
-  categoryTitle: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 2 },
-  categoryCount: { fontSize: 12, color: '#6B7280', marginBottom: 4 },
-  categoryPreview: { fontSize: 13, color: '#475569', fontWeight: '500', marginBottom: 2 },
-  categoryDate: { fontSize: 12, color: '#9CA3AF' },
+  categoryTitle: { fontSize: 16, fontWeight: '700', color: '#0D3349', marginBottom: 2 },
+  categoryCount: { fontSize: 12, color: '#8AACBA', marginBottom: 4 },
+  categoryPreview: { fontSize: 13, color: '#4A7080', fontWeight: '500', marginBottom: 2 },
+  categoryDate: { fontSize: 12, color: '#8AACBA' },
   categoryRight: { marginLeft: 8 },
-  viewHistoryText: { fontSize: 12, fontWeight: '600', color: '#2563EB' },
+  viewHistoryText: { fontSize: 12, fontWeight: '600', color: '#00B5AD' },
 });
