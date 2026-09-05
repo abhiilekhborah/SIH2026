@@ -1,4 +1,4 @@
-import { useSSO } from '@clerk/expo';
+import { useClerk, useSSO, useUser } from '@clerk/expo';
 import { useSignIn } from '@clerk/expo/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import * as AuthSession from 'expo-auth-session';
@@ -17,6 +17,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { resolveUserRoleDestination } from '@/lib/auth-helpers';
+
 // Closes the browser popup once Google sends the user back to the app.
 WebBrowser.maybeCompleteAuthSession();
 
@@ -27,6 +29,8 @@ const BORDER = '#E5E7EB';
 export default function LoginScreen() {
   const { isLoaded, signIn, setActive } = useSignIn();
   const { startSSOFlow } = useSSO();
+  const { user } = useUser();
+  const clerk = useClerk();
   const router = useRouter();
 
   const [email, setEmail] = useState('');
@@ -49,7 +53,8 @@ export default function LoginScreen() {
       if (attempt.status === 'complete') {
         // The password was right, so setActive is what logs the user in.
         await setActive({ session: attempt.createdSessionId });
-        router.replace('/role');
+        const targetRoute = await resolveUserRoleDestination(clerk.user || user);
+        router.replace(targetRoute);
       } else {
         // Clerk wants one more step from this account (2FA, password reset, ...).
         Alert.alert('Incomplete', 'Sign in did not finish.');
@@ -74,7 +79,8 @@ export default function LoginScreen() {
       if (createdSessionId && setActiveSSO) {
         // Google gave us a finished session, so log the user in.
         await setActiveSSO({ session: createdSessionId });
-        router.replace('/role');
+        const targetRoute = await resolveUserRoleDestination(clerk.user || user);
+        router.replace(targetRoute);
       }
       // If there is no createdSessionId the user closed the popup, so do nothing.
     } catch (err: any) {
