@@ -1,4 +1,5 @@
 import { useSSO } from '@clerk/expo';
+import { useSignIn } from '@clerk/expo/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import * as AuthSession from 'expo-auth-session';
 import { Image } from 'expo-image';
@@ -24,6 +25,7 @@ const DARK_BLUE = '#123E9E'; // Sign in button
 const BORDER = '#E5E7EB';
 
 export default function LoginScreen() {
+  const { isLoaded, signIn, setActive } = useSignIn();
   const { startSSOFlow } = useSSO();
   const router = useRouter();
 
@@ -31,7 +33,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-<<<<<<< HEAD
   // Email + password sign in: check the password, then start the session.
   const handleSignIn = async () => {
     // Clerk hydrates in the background, so wait until it is ready.
@@ -48,7 +49,7 @@ export default function LoginScreen() {
       if (attempt.status === 'complete') {
         // The password was right, so setActive is what logs the user in.
         await setActive({ session: attempt.createdSessionId });
-        router.replace('/(tab3)/home3' as any);
+        router.replace('/role');
       } else {
         // Clerk wants one more step from this account (2FA, password reset, ...).
         Alert.alert('Incomplete', 'Sign in did not finish.');
@@ -59,32 +60,21 @@ export default function LoginScreen() {
       setLoading(false);
     }
   };
-=======
-  function handleSignIn() {
-    // TODO: sign the user in with Clerk here.
-    router.replace('/home')
-  }
->>>>>>> 7215182176c8ff6f58b75cb7a75b1a7f4f36c618
 
   // Google sign in: opens Google in a browser popup, then starts the session.
   const handleGoogle = async () => {
     setLoading(true);
 
     try {
-      const { createdSessionId, setActive } = await startSSOFlow({
+      const { createdSessionId, setActive: setActiveSSO } = await startSSOFlow({
         strategy: 'oauth_google',
         redirectUrl: AuthSession.makeRedirectUri(),
       });
 
-      if (createdSessionId && setActive) {
+      if (createdSessionId && setActiveSSO) {
         // Google gave us a finished session, so log the user in.
-<<<<<<< HEAD
         await setActiveSSO({ session: createdSessionId });
-        router.replace('/(tab3)/home3' as any);
-=======
-        await setActive({ session: createdSessionId });
-        router.replace('/home');
->>>>>>> 7215182176c8ff6f58b75cb7a75b1a7f4f36c618
+        router.replace('/role');
       }
       // If there is no createdSessionId the user closed the popup, so do nothing.
     } catch (err: any) {

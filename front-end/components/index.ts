@@ -1,4 +1,6 @@
 export * from './app-header';
+export * from './chip-select';
+export * from './form-field';
 export * from './get-started-button';
 export * from './hamburger-button';
 export * from './notification-button';

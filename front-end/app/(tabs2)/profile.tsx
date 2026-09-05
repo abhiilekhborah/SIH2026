@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useAuth } from '@clerk/expo';
+import { useRouter } from 'expo-router';
 
 // Color Palette
 const COLORS = {
@@ -28,6 +29,7 @@ const COLORS = {
 
 export default function Profile() {
   const { signOut } = useAuth();
+  const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
 
   // Editable Profile States
@@ -49,7 +51,18 @@ export default function Profile() {
       'Are you sure you want to sign out of your account?',
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: () => signOut() },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await signOut();
+              router.replace('/');
+            } catch (err) {
+              console.error('Logout error:', err);
+            }
+          },
+        },
       ]
     );
   };

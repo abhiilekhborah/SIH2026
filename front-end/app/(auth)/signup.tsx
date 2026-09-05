@@ -1,4 +1,4 @@
-import { useSSO } from '@clerk/expo';
+import { useSSO, useUser } from '@clerk/expo';
 import { useSignUp } from '@clerk/expo/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import * as AuthSession from 'expo-auth-session';
@@ -17,6 +17,10 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { ChipSelect } from '@/components/chip-select';
+import { FormField } from '@/components/form-field';
+import { getOrCreateDbUserId } from '@/lib/supabase';
+
 // Closes the browser popup once Google sends the user back to the app.
 WebBrowser.maybeCompleteAuthSession();
 
@@ -24,14 +28,22 @@ const BLUE = '#1A66E8'; // logo + links
 const DARK_BLUE = '#123E9E'; // Register button
 const BORDER = '#E5E7EB';
 
+const GENDERS = ['Male', 'Female', 'Other'];
+
 export default function SignUpScreen() {
   const { isLoaded, signUp, setActive } = useSignUp();
   const { startSSOFlow } = useSSO();
+  const { user } = useUser();
   const router = useRouter();
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [phone, setPhone] = useState('');
+  const [dob, setDob] = useState('');
+  const [gender, setGender] = useState<string[]>([]);
+  const [preferredLanguage, setPreferredLanguage] = useState('');
+
   const [code, setCode] = useState('');
   const [pendingVerification, setPendingVerification] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,6 +51,30 @@ export default function SignUpScreen() {
   // Step 1: create the account and ask Clerk to email a 6-digit code.
   const onSignUpPress = async () => {
     if (!isLoaded) return;
+
+    if (!fullName.trim()) {
+      Alert.alert('Name required', 'Please enter your full name.');
+      return;
+    }
+
+    if (!email.trim()) {
+      Alert.alert('Email required', 'Please enter your email address.');
+      return;
+    }
+
+    if (!password) {
+      Alert.alert('Password required', 'Please enter a password.');
+      return;
+    }
+
+    if (dob.trim() && !/^\d{4}-\d{2}-\d{2}$/.test(dob.trim())) {
+      Alert.alert(
+        'Check Date of Birth',
+        'Please enter date of birth in YYYY-MM-DD format (e.g. 1990-01-15).'
+      );
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -61,7 +97,7 @@ export default function SignUpScreen() {
     }
   };
 
-  // Step 2: send the code back to Clerk and start the session.
+  // Step 2: send the code back to Clerk, save user info in Supabase `users` table, and proceed to role selection.
   const onVerifyPress = async () => {
     if (!isLoaded) return;
     setLoading(true);
@@ -71,11 +107,17 @@ export default function SignUpScreen() {
 
       if (attempt.status === 'complete') {
         await setActive({ session: attempt.createdSessionId });
-<<<<<<< HEAD
-        router.replace('/(tab3)/home3' as any);
-=======
-        router.replace('/home');
->>>>>>> 7215182176c8ff6f58b75cb7a75b1a7f4f36c618
+
+        // Save user fields (phone, dob, gender, preferredLanguage) to Supabase `users` table
+        await getOrCreateDbUserId(user, {
+          name: fullName,
+          phone,
+          dob,
+          gender: gender[0],
+          preferredLanguage,
+        });
+
+        router.replace('/role');
       } else {
         Alert.alert('Incomplete', 'Verification did not finish.');
       }
@@ -91,23 +133,25 @@ export default function SignUpScreen() {
     setLoading(true);
 
     try {
-      // The SSO flow hands back its own setActive, so rename it to avoid a
-      // clash with the setActive we already took from useSignUp above.
       const { createdSessionId, setActive: setActiveSSO } = await startSSOFlow({
         strategy: 'oauth_google',
         redirectUrl: AuthSession.makeRedirectUri(),
       });
 
       if (createdSessionId && setActiveSSO) {
-        // Google gave us a finished session, so log the user in.
         await setActiveSSO({ session: createdSessionId });
-<<<<<<< HEAD
-        router.replace('/(tab3)/home3' as any);
-=======
-        router.replace('/home');
->>>>>>> 7215182176c8ff6f58b75cb7a75b1a7f4f36c618
+
+        // Save initial user record to Supabase `users` table
+        await getOrCreateDbUserId(user, {
+          name: fullName,
+          phone,
+          dob,
+          gender: gender[0],
+          preferredLanguage,
+        });
+
+        router.replace('/role');
       }
-      // If there is no createdSessionId the user closed the popup, so do nothing.
     } catch (err: any) {
       Alert.alert('Google sign up failed', err.errors?.[0]?.message ?? 'Try again');
     } finally {
@@ -119,7 +163,6 @@ export default function SignUpScreen() {
   if (pendingVerification) {
     return (
       <SafeAreaView style={styles.screen}>
-        {/* Same logo bar as the sign up form */}
         <View style={styles.header}>
           <Ionicons name="medkit-outline" size={26} color={BLUE} />
           <Text style={styles.logoText}>MediQuick</Text>
@@ -154,7 +197,7 @@ export default function SignUpScreen() {
             disabled={loading}
           >
             <Text style={styles.registerText}>
-              {loading ? 'Verifying...' : 'Verify'}
+              {loading ? 'Verifying...' : 'Verify & Continue'}
             </Text>
           </Pressable>
 
@@ -174,7 +217,6 @@ export default function SignUpScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      {/* Logo bar */}
       <View style={styles.header}>
         <Ionicons name="medkit-outline" size={26} color={BLUE} />
         <Text style={styles.logoText}>MediQuick</Text>
@@ -183,6 +225,7 @@ export default function SignUpScreen() {
       <ScrollView
         contentContainerStyle={styles.content}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
         <Text style={styles.title}>Sign Up</Text>
         <Text style={styles.subtitle}>Create your MediQuick account.</Text>
@@ -193,37 +236,65 @@ export default function SignUpScreen() {
           contentFit="contain"
         />
 
-        {/* Full name */}
-        <Text style={styles.label}>Full Name</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Jane Doe"
-          placeholderTextColor="#9CA3AF"
+        {/* Account Credentials */}
+        <FormField
+          label="Full Name"
           value={fullName}
           onChangeText={setFullName}
+          placeholder="Jane Doe"
+          autoCapitalize="words"
+          required
         />
 
-        {/* Email */}
-        <Text style={styles.label}>Email Address</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="jane@example.com"
-          placeholderTextColor="#9CA3AF"
+        <FormField
+          label="Email Address"
           value={email}
           onChangeText={setEmail}
+          placeholder="jane@example.com"
           keyboardType="email-address"
           autoCapitalize="none"
+          required
         />
 
-        {/* Password */}
-        <Text style={styles.label}>Create Password</Text>
-        <TextInput
-          style={styles.input}
-          placeholder="••••••••"
-          placeholderTextColor="#9CA3AF"
+        <FormField
+          label="Create Password"
           value={password}
           onChangeText={setPassword}
-          secureTextEntry
+          placeholder="••••••••"
+          autoCapitalize="none"
+          required
+        />
+
+        {/* User Profile Info for Database `users` table */}
+        <FormField
+          label="Phone Number"
+          value={phone}
+          onChangeText={setPhone}
+          placeholder="+91 98765 43210"
+          keyboardType="phone-pad"
+        />
+
+        <FormField
+          label="Date of Birth"
+          value={dob}
+          onChangeText={setDob}
+          placeholder="YYYY-MM-DD (e.g. 1990-01-15)"
+          hint="Date of birth in YYYY-MM-DD format"
+        />
+
+        <ChipSelect
+          label="Gender"
+          options={GENDERS}
+          value={gender}
+          onChange={setGender}
+        />
+
+        <FormField
+          label="Preferred Language"
+          value={preferredLanguage}
+          onChangeText={setPreferredLanguage}
+          placeholder="English, Hindi, etc."
+          autoCapitalize="words"
         />
 
         <Pressable
@@ -285,7 +356,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 24,
     paddingTop: 24,
-    paddingBottom: 32,
+    paddingBottom: 40,
   },
   title: {
     fontSize: 30,
