@@ -1,4 +1,5 @@
 import { GetStartedButton } from '@/components/get-started-button';
+import { getRoleDestination } from '@/lib/auth-helpers';
 import { useAuth, useUser } from '@clerk/expo';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -24,16 +25,8 @@ export default function GetStartedScreen() {
 
   // Already signed in: redirect based on saved role.
   if (isSignedIn) {
-    const role = user?.unsafeMetadata?.role;
-    if (role === 'patient') {
-      return <Redirect href="/(tabs)/home" />;
-    } else if (role === 'doctor') {
-      return <Redirect href="/(tabs2)/home" />;
-    } else if (role === 'pharmacist' || role === 'pharmacy') {
-      return <Redirect href="/(tab3)/home3" />;
-    } else {
-      return <Redirect href="/role" />;
-    }
+    const destination = getRoleDestination(user?.unsafeMetadata?.role);
+    return <Redirect href={destination} />;
   }
 
   function handleGetStarted() {

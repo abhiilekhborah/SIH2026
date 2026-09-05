@@ -1,4 +1,4 @@
-import { useSSO, useUser } from '@clerk/expo';
+import { useClerk, useSSO, useUser } from '@clerk/expo';
 import { useSignUp } from '@clerk/expo/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import * as AuthSession from 'expo-auth-session';
@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChipSelect } from '@/components/chip-select';
 import { FormField } from '@/components/form-field';
+import { resolveUserRoleDestination } from '@/lib/auth-helpers';
 import { getOrCreateDbUserId } from '@/lib/supabase';
 
 // Closes the browser popup once Google sends the user back to the app.
@@ -34,6 +35,7 @@ export default function SignUpScreen() {
   const { isLoaded, signUp, setActive } = useSignUp();
   const { startSSOFlow } = useSSO();
   const { user } = useUser();
+  const clerk = useClerk();
   const router = useRouter();
 
   const [fullName, setFullName] = useState('');
@@ -109,7 +111,7 @@ export default function SignUpScreen() {
         await setActive({ session: attempt.createdSessionId });
 
         // Save user fields (phone, dob, gender, preferredLanguage) to Supabase `users` table
-        await getOrCreateDbUserId(user, {
+        await getOrCreateDbUserId(clerk.user || user, {
           name: fullName,
           phone,
           dob,
@@ -142,7 +144,7 @@ export default function SignUpScreen() {
         await setActiveSSO({ session: createdSessionId });
 
         // Save initial user record to Supabase `users` table
-        await getOrCreateDbUserId(user, {
+        await getOrCreateDbUserId(clerk.user || user, {
           name: fullName,
           phone,
           dob,
@@ -150,7 +152,8 @@ export default function SignUpScreen() {
           preferredLanguage,
         });
 
-        router.replace('/role');
+        const targetRoute = await resolveUserRoleDestination(clerk.user || user);
+        router.replace(targetRoute);
       }
     } catch (err: any) {
       Alert.alert('Google sign up failed', err.errors?.[0]?.message ?? 'Try again');
