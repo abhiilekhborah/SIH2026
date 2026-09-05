@@ -1,11 +1,13 @@
 import db from "../config/db.js";
-import { users, patientProfiles } from "../../drizzle/schema.js";
+import { patientProfiles } from "../../drizzle/schema.js";
 import { eq } from "drizzle-orm";
 
-export const addPatient = async (req, res, next) => {
+export const addPatient = async (req, res) => {
   try {
+    // Get user ID from authentication middleware
+    const userId = req.user.id;
+
     const {
-      userId,
       bloodGroup,
       emergencyContactName,
       emergencyContactPhone,
@@ -20,33 +22,22 @@ export const addPatient = async (req, res, next) => {
       name,
     } = req.body;
 
-    // Check if user exists before linking patient profile
-    const existingUser = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, userId));
-
-    if (existingUser.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found. Cannot create patient profile.",
-      });
-    }
-
-    // Check if patient profile already exists for this user
-    const existingPatient = await db
+    // Check if patient profile already exists
+    const [existingPatient] = await db
       .select()
       .from(patientProfiles)
-      .where(eq(patientProfiles.userId, userId));
+      .where(eq(patientProfiles.userId, userId))
+      .limit(1);
 
-    if (existingPatient.length > 0) {
+    if (existingPatient) {
       return res.status(409).json({
         success: false,
-        message: "Patient profile already exists for this user.",
+        message: "Patient profile already exists",
       });
     }
 
-    const patient = await db
+    // Create patient profile
+    const [patient] = await db
       .insert(patientProfiles)
       .values({
         userId,
@@ -68,9 +59,15 @@ export const addPatient = async (req, res, next) => {
     return res.status(201).json({
       success: true,
       message: "Patient profile created successfully",
-      patient: patient[0],
+      patient,
     });
+
   } catch (error) {
-    next(error); // Pass error to global error handler
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to create patient profile",
+    });
   }
 };
