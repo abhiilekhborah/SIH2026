@@ -56,7 +56,7 @@ export default function Profile() {
             {/* Avatar */}
             <View style={styles.avatarWrapper}>
               <Image 
-                source={require('../../assets/images/pharma.png')} 
+                source={require('../../assets/images/profile.png')} 
                 style={styles.avatarImage} 
               />
               <View style={styles.avatarBadge}>
