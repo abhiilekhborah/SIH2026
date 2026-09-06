@@ -1,63 +1,113 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Platform } from 'react-native';
-import * as Device from 'expo-device';
-import type { EventSubscription } from 'expo-modules-core';
-import * as Notifications from 'expo-notifications';
+import { useState, useEffect } from 'react';
+import { NativeModules, Platform } from 'react-native';
 import Constants from 'expo-constants';
 
-/**
- * Shape of the notification data payload we expect from the backend.
- * Extend this as your backend sends more fields.
- */
 export interface PushNotificationData {
-  /** e.g. 'appointment', 'prescription', 'message', 'lab_result', 'reminder' */
   type?: string;
-  /** Optional deep-link route to navigate to when tapped */
   route?: string;
-  /** Any extra data from the backend */
   [key: string]: unknown;
 }
 
 export interface UsePushNotificationsResult {
-  /** The Expo push token string (e.g. "ExponentPushToken[xxxxxxxxxxxxxx]") */
   expoPushToken: string | null;
-  /** The most recently received notification (foreground) */
-  notification: Notifications.Notification | null;
-  /** The notification response when the user taps a notification */
-  notificationResponse: Notifications.NotificationResponse | null;
-  /** Any error encountered during registration */
+  notification: any;
+  notificationResponse: any;
   error: string | null;
 }
 
 /**
- * Configure how notifications are handled when the app is in the foreground.
- * This must be called at the module level (outside any component).
+ * Safely require expo-notifications only if native module is present in app binary.
  */
-export function configureForegroundHandler() {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
-  });
+function getSafeNotifications() {
+  try {
+    const { requireNativeModule } = require('expo-modules-core');
+    if (requireNativeModule) {
+      const nativeMod = requireNativeModule('ExpoPushTokenManager');
+      if (!nativeMod) return null;
+    }
+  } catch (e) {
+    return null;
+  }
+
+  try {
+    const Notifications = require('expo-notifications');
+    if (Notifications && typeof Notifications.getPermissionsAsync === 'function') {
+      return Notifications;
+    }
+  } catch (e) {
+    return null;
+  }
+  return null;
 }
 
 /**
- * Register for push notifications and get the Expo push token.
- * Creates Android notification channel on API 26+.
+ * Safely require expo-device only if native module is present in app binary.
+ */
+function getSafeDevice() {
+  try {
+    const { requireNativeModule } = require('expo-modules-core');
+    if (requireNativeModule) {
+      const nativeMod = requireNativeModule('ExpoDevice');
+      if (!nativeMod) return null;
+    }
+  } catch (e) {
+    return null;
+  }
+
+  try {
+    const Device = require('expo-device');
+    if (Device && typeof Device.isDevice !== 'undefined') {
+      return Device;
+    }
+  } catch (e) {
+    return null;
+  }
+  return null;
+}
+
+/**
+ * Configure foreground notification behavior safely.
+ */
+export function configureForegroundHandler() {
+  const Notifications = getSafeNotifications();
+  if (!Notifications) return;
+
+  try {
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: true,
+      }),
+    });
+  } catch (e) {
+    console.warn('⚠️ configureForegroundHandler warning:', e);
+  }
+}
+
+/**
+ * Register for push notifications safely on physical devices.
  */
 async function registerForPushNotificationsAsync(): Promise<string> {
-  // Push notifications only work on physical devices
-  if (!Device.isDevice) {
+  const Device = getSafeDevice();
+  const Notifications = getSafeNotifications();
+
+  if (!Device || !Notifications) {
     throw new Error(
-      'Push notifications require a physical device. They do not work in an emulator/simulator or Expo Go.'
+      'Push notification native modules (expo-notifications / expo-device) not linked in this app binary build.'
     );
   }
 
-  // Create Android notification channel (required for Android 8.0+)
-  if (Platform.OS === 'android') {
+  // Check physical device
+  if (!Device.isDevice) {
+    throw new Error(
+      'Push notifications require a physical device (simulator/emulator is not supported).'
+    );
+  }
+
+  // Android notification channel setup
+  if (Platform.OS === 'android' && Notifications.setNotificationChannelAsync) {
     await Notifications.setNotificationChannelAsync('default', {
       name: 'Default',
       importance: Notifications.AndroidImportance.MAX,
@@ -67,84 +117,96 @@ async function registerForPushNotificationsAsync(): Promise<string> {
     });
   }
 
-  // Check existing permission
+  // Request permissions
   const { status: existingStatus } = await Notifications.getPermissionsAsync();
   let finalStatus = existingStatus;
 
-  // Request permission if not already granted
   if (existingStatus !== 'granted') {
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }
 
   if (finalStatus !== 'granted') {
-    throw new Error(
-      'Notification permission was denied. Please enable notifications in your device settings.'
-    );
+    throw new Error('Notification permission was denied by user.');
   }
 
-  // Get the Expo push token
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-  const tokenData = await Notifications.getExpoPushTokenAsync({
-    projectId,
-  });
+  // Generate push token (Expo token or direct Firebase FCM device token)
+  try {
+    const projectId = Constants.expoConfig?.extra?.eas?.projectId || Constants.easConfig?.projectId;
+    const tokenData = projectId
+      ? await Notifications.getExpoPushTokenAsync({ projectId })
+      : await Notifications.getExpoPushTokenAsync();
 
-  return tokenData.data;
+    console.log('🔥 REAL EXPO PUSH TOKEN:', tokenData.data);
+    return tokenData.data;
+  } catch (tokenErr: any) {
+    const msg = tokenErr?.message || '';
+    console.warn('⚠️ Expo push token attempt failed, trying native Firebase FCM / APNs device token:', msg);
+
+    // Fetch direct native Firebase FCM / APNs token
+    try {
+      const nativeToken = await Notifications.getDevicePushTokenAsync();
+      if (nativeToken?.data) {
+        const rawToken = typeof nativeToken.data === 'string' ? nativeToken.data : JSON.stringify(nativeToken.data);
+        console.log('🔥 REAL NATIVE FIREBASE/APNS TOKEN:', rawToken);
+        return rawToken;
+      }
+    } catch (devTokenErr: any) {
+      console.warn('⚠️ Native device push token fetch failed:', devTokenErr?.message);
+    }
+
+    if (msg.includes('aps-environment')) {
+      throw new Error(
+        'iOS APNs Entitlement Missing: To test real Firebase notifications on physical iPhone:\n' +
+        '1) For Android: Run on Android device/emulator (FCM works 100% out-of-the-box).\n' +
+        '2) For iOS: Open app in "Expo Go" app from App Store OR rebuild native iOS app with an Apple Developer account.'
+      );
+    }
+    throw tokenErr;
+  }
 }
 
-/**
- * Custom hook that manages push notification registration and event listeners.
- *
- * Usage:
- * ```tsx
- * const { expoPushToken, notification, error } = usePushNotifications();
- * ```
- */
 export function usePushNotifications(): UsePushNotificationsResult {
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
-  const [notification, setNotification] =
-    useState<Notifications.Notification | null>(null);
-  const [notificationResponse, setNotificationResponse] =
-    useState<Notifications.NotificationResponse | null>(null);
+  const [notification, setNotification] = useState<any>(null);
+  const [notificationResponse, setNotificationResponse] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const notificationListener = useRef<EventSubscription | null>(null);
-  const responseListener = useRef<EventSubscription | null>(null);
-
   useEffect(() => {
-    // Register and get token
     registerForPushNotificationsAsync()
       .then((token) => {
-        console.log('📱 Expo Push Token:', token);
+        console.log('📱 EXPO PUSH TOKEN GENERATED SUCCESSFULLY:', token);
         setExpoPushToken(token);
+        setError(null);
       })
       .catch((err: Error) => {
-        console.warn('⚠️ Push notification registration failed:', err.message);
+        console.warn('⚠️ Push notification status:', err.message);
         setError(err.message);
       });
 
-    // Listener: notification received while app is foregrounded
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener((notif) => {
-        console.log('🔔 Notification received (foreground):', notif.request.content.title);
-        setNotification(notif);
-      });
+    const Notifications = getSafeNotifications();
+    if (!Notifications) return;
 
-    // Listener: user tapped a notification
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log('👆 Notification tapped:', response.notification.request.content.title);
-        setNotificationResponse(response);
-      });
+    try {
+      if (Notifications.addNotificationReceivedListener && Notifications.addNotificationResponseReceivedListener) {
+        const sub1 = Notifications.addNotificationReceivedListener((notif: any) => {
+          console.log('🔔 Notification received (foreground):', notif.request?.content?.title);
+          setNotification(notif);
+        });
 
-    return () => {
-      if (notificationListener.current) {
-        notificationListener.current.remove();
+        const sub2 = Notifications.addNotificationResponseReceivedListener((response: any) => {
+          console.log('👆 Notification tapped:', response.notification?.request?.content?.title);
+          setNotificationResponse(response);
+        });
+
+        return () => {
+          if (sub1 && sub1.remove) sub1.remove();
+          if (sub2 && sub2.remove) sub2.remove();
+        };
       }
-      if (responseListener.current) {
-        responseListener.current.remove();
-      }
-    };
+    } catch (e) {
+      // Safe fallback
+    }
   }, []);
 
   return { expoPushToken, notification, notificationResponse, error };
