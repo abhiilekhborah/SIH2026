@@ -72,6 +72,7 @@ export default function TabsLayout() {
         <Tabs.Screen name="referrals" options={{ href: null }} />
         <Tabs.Screen name="settings" options={{ href: null }} />
         <Tabs.Screen name="consultation" options={{ href: null }} />
+        <Tabs.Screen name="appointments" options={{ href: null }} />
         <Tabs.Screen
           name="profile"
           options={{
