@@ -1,151 +1,118 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { Platform } from 'react-native';
-import * as Device from 'expo-device';
-import type { EventSubscription } from 'expo-modules-core';
+import { useState, useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
-import Constants from 'expo-constants';
+import {
+  registerForPushNotifications,
+  attachNotificationListeners,
+  getColdStartNotificationResponse,
+  ensureAndroidChannels,
+  type RegisteredPushToken,
+  type UserRole,
+} from '@/utils/pushNotification';
+import { saveDeviceToken } from '@/lib/push-token-store';
 
-/**
- * Shape of the notification data payload we expect from the backend.
- * Extend this as your backend sends more fields.
- */
-export interface PushNotificationData {
-  /** e.g. 'appointment', 'prescription', 'message', 'lab_result', 'reminder' */
-  type?: string;
-  /** Optional deep-link route to navigate to when tapped */
-  route?: string;
-  /** Any extra data from the backend */
-  [key: string]: unknown;
-}
+// Re-exported so existing imports from this module keep working.
+export {
+  configureForegroundHandler,
+  scheduleLocalNotification,
+  type PushNotificationData,
+  type RegisteredPushToken,
+} from '@/utils/pushNotification';
 
 export interface UsePushNotificationsResult {
-  /** The Expo push token string (e.g. "ExponentPushToken[xxxxxxxxxxxxxx]") */
+  /** This device's native push token (FCM on Android, APNs on iOS), or null. */
+  pushToken: RegisteredPushToken | null;
+  /** ExponentPushToken[…] for the expo.dev/notifications tool, or null. */
   expoPushToken: string | null;
-  /** The most recently received notification (foreground) */
+  /** The most recently received notification (foreground only). */
   notification: Notifications.Notification | null;
-  /** The notification response when the user taps a notification */
+  /** The notification the user tapped — including a cold-start launch. */
   notificationResponse: Notifications.NotificationResponse | null;
-  /** Any error encountered during registration */
-  error: string | null;
 }
 
 /**
- * Configure how notifications are handled when the app is in the foreground.
- * This must be called at the module level (outside any component).
- */
-export function configureForegroundHandler() {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowBanner: true,
-      shouldShowList: true,
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-    }),
-  });
-}
-
-/**
- * Register for push notifications and get the Expo push token.
- * Creates Android notification channel on API 26+.
- */
-async function registerForPushNotificationsAsync(): Promise<string> {
-  // Push notifications only work on physical devices
-  if (!Device.isDevice) {
-    throw new Error(
-      'Push notifications require a physical device. They do not work in an emulator/simulator or Expo Go.'
-    );
-  }
-
-  // Create Android notification channel (required for Android 8.0+)
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'Default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#00B5AD',
-      sound: 'default',
-    });
-  }
-
-  // Check existing permission
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  // Request permission if not already granted
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  if (finalStatus !== 'granted') {
-    throw new Error(
-      'Notification permission was denied. Please enable notifications in your device settings.'
-    );
-  }
-
-  // Get the Expo push token
-  const projectId = Constants.expoConfig?.extra?.eas?.projectId;
-  const tokenData = await Notifications.getExpoPushTokenAsync({
-    projectId,
-  });
-
-  return tokenData.data;
-}
-
-/**
- * Custom hook that manages push notification registration and event listeners.
+ * Owns the entire notification lifecycle for the app.
  *
- * Usage:
- * ```tsx
- * const { expoPushToken, notification, error } = usePushNotifications();
- * ```
+ * Call this exactly once, from the root layout. Calling it in more than one
+ * component would attach duplicate listeners and show every banner twice.
+ *
+ * Registration is deferred until `userId` is known, because a token is only
+ * useful once we can attribute it to an account.
  */
-export function usePushNotifications(): UsePushNotificationsResult {
+export function usePushNotifications(
+  userId: string | null,
+  role: UserRole | null
+): UsePushNotificationsResult {
+  const [pushToken, setPushToken] = useState<RegisteredPushToken | null>(null);
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
-  const [notification, setNotification] =
-    useState<Notifications.Notification | null>(null);
+  const [notification, setNotification] = useState<Notifications.Notification | null>(null);
   const [notificationResponse, setNotificationResponse] =
     useState<Notifications.NotificationResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  const notificationListener = useRef<EventSubscription | null>(null);
-  const responseListener = useRef<EventSubscription | null>(null);
+  // Latest identity, readable from inside listeners without re-subscribing.
+  const identity = useRef<{ userId: string | null; role: UserRole | null }>({ userId, role });
+  identity.current = { userId, role };
 
+  // Channels and cold-start check run once, independent of auth.
   useEffect(() => {
-    // Register and get token
-    registerForPushNotificationsAsync()
-      .then((token) => {
-        console.log('📱 Expo Push Token:', token);
-        setExpoPushToken(token);
-      })
-      .catch((err: Error) => {
-        console.warn('⚠️ Push notification registration failed:', err.message);
-        setError(err.message);
-      });
+    ensureAndroidChannels();
 
-    // Listener: notification received while app is foregrounded
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener((notif) => {
-        console.log('🔔 Notification received (foreground):', notif.request.content.title);
-        setNotification(notif);
-      });
-
-    // Listener: user tapped a notification
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log('👆 Notification tapped:', response.notification.request.content.title);
+    getColdStartNotificationResponse().then((response) => {
+      if (response) {
+        console.log(
+          '🚀 [push] App cold-started from a notification:',
+          response.notification.request.content.title
+        );
         setNotificationResponse(response);
-      });
-
-    return () => {
-      if (notificationListener.current) {
-        notificationListener.current.remove();
       }
-      if (responseListener.current) {
-        responseListener.current.remove();
-      }
-    };
+    });
   }, []);
 
-  return { expoPushToken, notification, notificationResponse, error };
+  // Listeners are attached once and live for the app's lifetime.
+  useEffect(() => {
+    const detach = attachNotificationListeners({
+      onReceived: (notif) => {
+        console.log('🔔 [push] Received in foreground:', notif.request.content.title);
+        setNotification(notif);
+      },
+      onResponse: (response) => {
+        console.log('👆 [push] Tapped:', response.notification.request.content.title);
+        setNotificationResponse(response);
+      },
+      onTokenRefresh: (refreshed) => {
+        setPushToken(refreshed);
+        const { userId: uid, role: r } = identity.current;
+        if (uid && r) {
+          saveDeviceToken({
+            userId: uid,
+            role: r,
+            token: refreshed.token,
+            tokenType: refreshed.tokenType,
+            platform: refreshed.platform,
+          });
+        }
+      },
+    });
+
+    return detach;
+  }, []);
+
+  // Register (and persist) the token once we know who the user is.
+  useEffect(() => {
+    if (!userId || !role) return;
+
+    let cancelled = false;
+
+    (async () => {
+      const { native, expo } = await registerForPushNotifications(userId, role);
+      if (cancelled) return;
+      if (native) setPushToken(native);
+      if (expo) setExpoPushToken(expo);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, role]);
+
+  return { pushToken, expoPushToken, notification, notificationResponse };
 }

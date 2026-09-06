@@ -1,107 +1,163 @@
-import { supabase } from './supabase';
 import { Platform } from 'react-native';
+import { supabase } from './supabase';
 
 /**
- * Upserts a device push token into Supabase `user_push_tokens` table.
+ * Supabase persistence for device push tokens.
  *
- * Table schema (create this in Supabase SQL editor):
- * ```sql
- * CREATE TABLE IF NOT EXISTS user_push_tokens (
- *   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
- *   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
- *   expo_push_token TEXT NOT NULL,
- *   platform TEXT NOT NULL CHECK (platform IN ('ios', 'android')),
- *   device_name TEXT,
- *   is_active BOOLEAN DEFAULT true,
- *   created_at TIMESTAMPTZ DEFAULT now(),
- *   updated_at TIMESTAMPTZ DEFAULT now(),
- *   UNIQUE (user_id, expo_push_token)
- * );
+ * This module is deliberately dependency-free apart from the Supabase client —
+ * it must not import from `utils/pushNotification` or `hooks/usePushNotifications`,
+ * because those import from here (that would create a require cycle).
  *
- * -- Index for fast lookups by user
- * CREATE INDEX idx_user_push_tokens_user_id ON user_push_tokens(user_id);
- *
- * -- Enable RLS
- * ALTER TABLE user_push_tokens ENABLE ROW LEVEL SECURITY;
- *
- * -- Policy: users can manage their own tokens
- * CREATE POLICY "Users can manage own tokens"
- *   ON user_push_tokens FOR ALL
- *   USING (true)
- *   WITH CHECK (true);
- * ```
+ * Run `notification-test-engine/sql/001_device_push_tokens.sql` in the Supabase
+ * SQL editor before using any of this.
  */
 
+export type PushTokenType = 'fcm' | 'apns' | 'expo';
+export type UserRole = 'patient' | 'doctor' | 'pharmacist';
+export type PushPlatform = 'ios' | 'android' | 'web';
+
+export interface DeviceTokenRecord {
+  userId: string;
+  role: UserRole;
+  token: string;
+  tokenType: PushTokenType;
+  platform: PushPlatform;
+  deviceName?: string;
+}
+
+/** Mask a token for logging — never print the full value. */
+export function maskToken(token: string): string {
+  if (!token) return '(empty)';
+  return token.length > 14 ? `${token.slice(0, 8)}…${token.slice(-6)}` : '***';
+}
+
 /**
- * Save or update the device's push token in Supabase, linked to a user.
- * Call this after both the push token and the DB user ID are available.
+ * Upsert this device's native push token into `device_push_tokens`.
+ *
+ * The table is keyed by the token itself, so reinstalling the app or handing the
+ * phone to a different account re-points the existing row instead of piling up
+ * stale duplicates that would later bounce with `Unregistered`.
  */
-export async function savePushToken(
-  userId: string,
-  expoPushToken: string,
-  deviceName?: string
-): Promise<void> {
+export async function saveDeviceToken(record: DeviceTokenRecord): Promise<boolean> {
+  const { userId, role, token, tokenType, platform, deviceName } = record;
+
+  if (!userId || !token) {
+    console.warn('⚠️ [push] saveDeviceToken called without a userId or token.');
+    return false;
+  }
+
   try {
-    const { error } = await supabase.from('user_push_tokens').upsert(
+    const { error } = await supabase.from('device_push_tokens').upsert(
       {
         user_id: userId,
-        expo_push_token: expoPushToken,
-        platform: Platform.OS, // 'ios' or 'android'
+        role,
+        token,
+        token_type: tokenType,
+        platform,
         device_name: deviceName ?? `${Platform.OS} device`,
         is_active: true,
         updated_at: new Date().toISOString(),
       },
-      { onConflict: 'user_id,expo_push_token' }
+      { onConflict: 'token' }
     );
 
     if (error) {
-      console.warn('⚠️ Failed to save push token to Supabase:', error.message);
-    } else {
-      console.log('✅ Push token saved to Supabase for user:', userId);
+      if (error.message?.includes('device_push_tokens')) {
+        console.warn(
+          '⚠️ [push] Table "device_push_tokens" is missing. Run notification-test-engine/sql/001_device_push_tokens.sql in the Supabase SQL editor.'
+        );
+      } else {
+        console.warn('⚠️ [push] Failed to save device token:', error.message);
+      }
+      return false;
     }
+
+    console.log(`✅ [push] Saved ${tokenType.toUpperCase()} token ${maskToken(token)} for ${role} ${userId}`);
+    return true;
   } catch (err) {
-    console.warn('⚠️ savePushToken error:', err);
+    console.warn('⚠️ [push] saveDeviceToken error:', err);
+    return false;
   }
 }
 
 /**
- * Deactivate a push token (e.g. on logout or when the user disables notifications).
+ * Mirror the token onto `patient_profiles` / `doctor_profiles`.
+ *
+ * Kept so the older backend lookup path keeps working; `device_push_tokens` is
+ * the source of truth. Pharmacists have no profile table, so they are skipped.
+ * Failures here are non-fatal by design — a missing column must not stop the
+ * primary write above from counting as success.
  */
-export async function deactivatePushToken(
+export async function mirrorTokenToProfile(
   userId: string,
-  expoPushToken: string
-): Promise<void> {
+  role: UserRole,
+  token: string,
+  tokenType: PushTokenType
+): Promise<boolean> {
+  if (role === 'pharmacist') return false;
+
+  const targetTable = role === 'patient' ? 'patient_profiles' : 'doctor_profiles';
+
   try {
-    const { error } = await supabase
-      .from('user_push_tokens')
-      .update({ is_active: false, updated_at: new Date().toISOString() })
+    const { data, error } = await supabase
+      .from(targetTable)
+      .update({ fcm_token: token, push_token_type: tokenType })
       .eq('user_id', userId)
-      .eq('expo_push_token', expoPushToken);
+      .select('id');
 
     if (error) {
-      console.warn('⚠️ Failed to deactivate push token:', error.message);
-    } else {
-      console.log('🔕 Push token deactivated for user:', userId);
+      console.warn(`⚠️ [push] Could not mirror token to ${targetTable}:`, error.message);
+      return false;
     }
+
+    if (!data || data.length === 0) {
+      // No profile row yet — normal for a user who hasn't completed onboarding.
+      return false;
+    }
+
+    return true;
   } catch (err) {
-    console.warn('⚠️ deactivatePushToken error:', err);
+    console.warn(`⚠️ [push] mirrorTokenToProfile error:`, err);
+    return false;
   }
 }
 
 /**
- * Remove all push tokens for a user (e.g. on account deletion).
+ * Deactivate this device's token — call on logout so a signed-out phone stops
+ * receiving pushes meant for the account that used to be on it.
  */
-export async function removeAllPushTokens(userId: string): Promise<void> {
+export async function deactivateDeviceToken(token: string): Promise<void> {
+  if (!token) return;
+
   try {
     const { error } = await supabase
-      .from('user_push_tokens')
-      .delete()
+      .from('device_push_tokens')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('token', token);
+
+    if (error) {
+      console.warn('⚠️ [push] Failed to deactivate token:', error.message);
+      return;
+    }
+
+    console.log('🔕 [push] Deactivated token', maskToken(token));
+  } catch (err) {
+    console.warn('⚠️ [push] deactivateDeviceToken error:', err);
+  }
+}
+
+/** Deactivate every token belonging to a user (all their devices). */
+export async function deactivateAllUserTokens(userId: string): Promise<void> {
+  if (!userId) return;
+
+  try {
+    const { error } = await supabase
+      .from('device_push_tokens')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
       .eq('user_id', userId);
 
-    if (error) {
-      console.warn('⚠️ Failed to remove push tokens:', error.message);
-    }
+    if (error) console.warn('⚠️ [push] Failed to deactivate user tokens:', error.message);
   } catch (err) {
-    console.warn('⚠️ removeAllPushTokens error:', err);
+    console.warn('⚠️ [push] deactivateAllUserTokens error:', err);
   }
 }

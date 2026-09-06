@@ -121,7 +121,6 @@ export default function Home() {
   const { openNotifications } = useNotifications();
   const { user }              = useUser();
   const router                = useRouter();
-  const [unreadNotifications, setUnreadNotifications] = useState(3);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
@@ -185,7 +184,6 @@ export default function Home() {
         showNotification={true}
         onPressMenu={openMenu}
         onPressNotification={openNotifications}
-        badgeCount={3}
         style={styles.header}
         buttonBackgroundColor="rgba(0,181,173,0.12)"
       />

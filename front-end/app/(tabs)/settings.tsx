@@ -6,6 +6,7 @@ import { useSideMenu } from '@/components/side-menu-context';
 import { useNotifications } from '@/components/notification-context';
 import * as Notifications from 'expo-notifications';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { getActivePushToken, scheduleDevTestNotification } from '@/utils/pushNotification';
 
 const TEAL = '#00B5AD';
 
@@ -143,17 +144,84 @@ export default function SettingsScreen() {
           <Text style={styles.versionText}>MediQuick v1.0.0  •  SIH 2026</Text>
         </View>
 
-        {/* Debug: show push token in dev mode */}
-        {__DEV__ && expoPushToken && (
+        {/* Everything below is stripped from production builds by __DEV__. */}
+        {__DEV__ && (
+          <>
+            <Text style={[styles.sectionTitle, { marginTop: 22 }]}>Developer</Text>
+            <View style={styles.group}>
+              <SettingRow
+                icon="flask-outline"
+                label="Fire a test notification"
+                sublabel="Local notification — works free, no server needed"
+                color="#16A34A"
+                onPress={() => {
+                  Alert.alert(
+                    'Fire a test notification',
+                    'Pick a delay. Use the 10 second option to background or fully close the app first, so you can check the tray notification and tap-to-navigate.',
+                    [
+                      {
+                        text: 'Now (app open)',
+                        onPress: async () => {
+                          try {
+                            await scheduleDevTestNotification(1);
+                          } catch (err: any) {
+                            Alert.alert('Could not schedule', err?.message ?? String(err));
+                          }
+                        },
+                      },
+                      {
+                        text: 'In 10 seconds',
+                        onPress: async () => {
+                          try {
+                            await scheduleDevTestNotification(10);
+                            Alert.alert(
+                              'Scheduled',
+                              'Close or background the app now. It will fire in 10 seconds.'
+                            );
+                          } catch (err: any) {
+                            Alert.alert('Could not schedule', err?.message ?? String(err));
+                          }
+                        },
+                      },
+                      { text: 'Cancel', style: 'cancel' },
+                    ]
+                  );
+                }}
+              />
+            </View>
+          </>
+        )}
+
+        {/* Dev only: the tokens the external push testing tools need.
+            Both are also printed in full in the Metro terminal at startup,
+            which is the practical way to copy them. */}
+        {__DEV__ && (
           <TouchableOpacity
             style={styles.debugRow}
             onPress={() => {
-              Alert.alert('Push Token', expoPushToken);
+              const native = getActivePushToken();
+              Alert.alert(
+                'Push tokens (dev only)',
+                [
+                  native
+                    ? `${native.tokenType.toUpperCase()} — for Firebase Console:\n${native.token}`
+                    : 'No native token yet. Needs a development build on a physical device with notifications allowed.',
+                  '',
+                  expoPushToken
+                    ? `Expo — for expo.dev/notifications:\n${expoPushToken}`
+                    : 'No Expo token. Run `eas init` in front-end/ to create an EAS project.',
+                  '',
+                  'Both are printed in full in the Metro terminal.',
+                ].join('\n'),
+                [{ text: 'OK' }]
+              );
             }}
           >
             <Ionicons name="bug-outline" size={14} color="#8AACBA" />
             <Text style={styles.debugText} numberOfLines={1}>
-              Token: {expoPushToken}
+              {getActivePushToken()
+                ? `${getActivePushToken()!.tokenType.toUpperCase()} token ready — tap to view`
+                : 'Waiting for a device push token…'}
             </Text>
           </TouchableOpacity>
         )}

@@ -14,8 +14,8 @@ import type {
   RemoteTrackPublication,
   RoomOptions,
   LocalTrack,
-  ConnectionState,
-  ConnectionQuality,
+  ConnectionState as IConnectionState,
+  ConnectionQuality as IConnectionQuality,
   Room as RoomType,
 } from "livekit-client";
 
@@ -26,8 +26,8 @@ const {
   Room,
   RoomEvent,
   Track,
-  ConnectionQuality: _ConnectionQuality,
-  ConnectionState: _ConnectionState,
+  ConnectionQuality,
+  ConnectionState,
   VideoPresets,
 } = livekit as typeof import("livekit-client");
 
@@ -40,9 +40,9 @@ interface UseConsultationOptions {
 
 interface ConsultationState {
   /** Current connection state */
-  connectionState: ConnectionState;
+  connectionState: IConnectionState;
   /** Local connection quality */
-  connectionQuality: ConnectionQuality;
+  connectionQuality: IConnectionQuality;
   /** Whether the local microphone is enabled */
   isAudioEnabled: boolean;
   /** Whether the local camera is enabled */
@@ -88,7 +88,7 @@ const ROOM_OPTIONS: RoomOptions = {
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useConsultation(options?: UseConsultationOptions) {
-  const roomRef = useRef<Room | null>(null);
+  const roomRef = useRef<RoomType | null>(null);
   const qualityTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const wasVideoEnabledRef = useRef(false);
 
@@ -145,13 +145,13 @@ export function useConsultation(options?: UseConsultationOptions) {
 
       // ── Room Events ────────────────────────────────────────────────────
 
-      room.on(RoomEvent.ConnectionStateChanged, (connectionState: ConnectionState) => {
+      room.on(RoomEvent.ConnectionStateChanged, (connectionState: IConnectionState) => {
         setState((s) => ({ ...s, connectionState }));
       });
 
       room.on(
         RoomEvent.ConnectionQualityChanged,
-        (quality: ConnectionQuality) => {
+        (quality: IConnectionQuality) => {
           setState((s) => ({ ...s, connectionQuality: quality }));
 
           // Auto-pause video on poor connection
