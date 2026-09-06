@@ -1,6 +1,5 @@
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
-import { useNotifications } from '@/components/notification-context';
 import {
   AvailabilityStatus,
   CustomerAvailabilityRequest,
@@ -41,7 +40,6 @@ const BG_PAGE = '#F8FAFC';
 export default function PharmacistHomeScreen() {
   const router = useRouter();
   const { openMenu } = useSideMenu();
-  const { openNotifications, unreadCount } = useNotifications();
   const {
     prescriptions,
     inventory,
@@ -177,9 +175,9 @@ export default function PharmacistHomeScreen() {
         showMenu
         showNotification
         onPressMenu={openMenu}
-        onPressNotification={openNotifications}
-        badgeCount={unreadCount || alerts.length}
-        hasUnreadNotifications={unreadCount > 0 || alerts.length > 0}
+        onPressNotification={() => setShowNotifications(true)}
+        badgeCount={alerts.length}
+        hasUnreadNotifications={alerts.length > 0}
         centerElement={
           <View style={styles.headerCenter}>
             <View style={styles.headerLogoBadge}>

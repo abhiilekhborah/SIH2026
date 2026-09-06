@@ -4,28 +4,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
 import { useNotifications } from '@/components/notification-context';
+import * as Notifications from 'expo-notifications';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { getActivePushToken, scheduleDevTestNotification } from '@/utils/pushNotification';
 
 const TEAL = '#00B5AD';
-
-const getNotificationsModule = () => {
-  try {
-    const { requireNativeModule } = require('expo-modules-core');
-    if (requireNativeModule) {
-      const nativeMod = requireNativeModule('ExpoPushTokenManager');
-      if (!nativeMod) return null;
-    }
-  } catch (e) {
-    return null;
-  }
-
-  try {
-    return require('expo-notifications');
-  } catch (e) {
-    return null;
-  }
-};
 
 function SettingRow({ icon, label, sublabel, color = TEAL, toggle, value, onValueChange, onPress }: {
   icon: any; label: string; sublabel?: string; color?: string;
@@ -59,11 +41,8 @@ export default function SettingsScreen() {
   // Check the actual notification permission status on mount
   useEffect(() => {
     (async () => {
-      const Notifications = getNotificationsModule();
-      if (Notifications?.getPermissionsAsync) {
-        const { status } = await Notifications.getPermissionsAsync();
-        setNotifs(status === 'granted');
-      }
+      const { status } = await Notifications.getPermissionsAsync();
+      setNotifs(status === 'granted');
     })();
   }, []);
 
@@ -73,34 +52,31 @@ export default function SettingsScreen() {
    * - If disabling: guide user to system settings (can't revoke programmatically)
    */
   const handleNotifToggle = useCallback(async (enabled: boolean) => {
-    const Notifications = getNotificationsModule();
     if (enabled) {
       // Request permission
-      if (Notifications?.requestPermissionsAsync) {
-        const { status } = await Notifications.requestPermissionsAsync();
-        if (status === 'granted') {
-          setNotifs(true);
-          return;
-        }
-      }
-      // Permission denied — guide to settings
-      Alert.alert(
-        'Notifications Blocked',
-        'Please enable notifications in your device settings to receive appointment alerts and updates.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Open Settings',
-            onPress: () => {
-              if (Platform.OS === 'ios') {
-                Linking.openURL('app-settings:');
-              } else {
-                Linking.openSettings();
-              }
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status === 'granted') {
+        setNotifs(true);
+      } else {
+        // Permission denied — guide to settings
+        Alert.alert(
+          'Notifications Blocked',
+          'Please enable notifications in your device settings to receive appointment alerts and updates.',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            {
+              text: 'Open Settings',
+              onPress: () => {
+                if (Platform.OS === 'ios') {
+                  Linking.openURL('app-settings:');
+                } else {
+                  Linking.openSettings();
+                }
+              },
             },
-          },
-        ]
-      );
+          ]
+        );
+      }
     } else {
       // Can't revoke permissions programmatically — guide to system settings
       Alert.alert(
@@ -145,27 +121,6 @@ export default function SettingsScreen() {
         <View style={styles.group}>
           <SettingRow icon="notifications-outline"  label="Push Notifications"  sublabel={notifs ? 'Enabled — receiving alerts' : 'Disabled — tap to enable'}   toggle value={notifs}    onValueChange={handleNotifToggle} />
           <View style={styles.divider} />
-          <SettingRow
-            icon="key-outline"
-            label="Device Push Token"
-            sublabel={
-              expoPushToken
-                ? `${expoPushToken.slice(0, 24)}... (Tap to view)`
-                : 'Tap to view token status'
-            }
-            color="#1976D2"
-            onPress={() => {
-              if (expoPushToken) {
-                Alert.alert('Device Push Token', expoPushToken, [{ text: 'OK' }]);
-              } else {
-                Alert.alert(
-                  'Push Token Status',
-                  'No push token generated yet.\n\nPush tokens are generated when running on a physical phone with native build enabled.'
-                );
-              }
-            }}
-          />
-          <View style={styles.divider} />
           <SettingRow icon="finger-print-outline"   label="Biometric Login"     sublabel="Use Face ID or fingerprint to login" toggle value={biometric} onValueChange={setBio} />
           <View style={styles.divider} />
           <SettingRow icon="moon-outline"            label="Dark Mode"           sublabel="Coming soon"                         toggle value={darkMode}  onValueChange={setDark} color="#7B1FA2" />
@@ -188,84 +143,17 @@ export default function SettingsScreen() {
           <Text style={styles.versionText}>MediQuick v1.0.0  •  SIH 2026</Text>
         </View>
 
-        {/* Everything below is stripped from production builds by __DEV__. */}
-        {__DEV__ && (
-          <>
-            <Text style={[styles.sectionTitle, { marginTop: 22 }]}>Developer</Text>
-            <View style={styles.group}>
-              <SettingRow
-                icon="flask-outline"
-                label="Fire a test notification"
-                sublabel="Local notification — works free, no server needed"
-                color="#16A34A"
-                onPress={() => {
-                  Alert.alert(
-                    'Fire a test notification',
-                    'Pick a delay. Use the 10 second option to background or fully close the app first, so you can check the tray notification and tap-to-navigate.',
-                    [
-                      {
-                        text: 'Now (app open)',
-                        onPress: async () => {
-                          try {
-                            await scheduleDevTestNotification(1);
-                          } catch (err: any) {
-                            Alert.alert('Could not schedule', err?.message ?? String(err));
-                          }
-                        },
-                      },
-                      {
-                        text: 'In 10 seconds',
-                        onPress: async () => {
-                          try {
-                            await scheduleDevTestNotification(10);
-                            Alert.alert(
-                              'Scheduled',
-                              'Close or background the app now. It will fire in 10 seconds.'
-                            );
-                          } catch (err: any) {
-                            Alert.alert('Could not schedule', err?.message ?? String(err));
-                          }
-                        },
-                      },
-                      { text: 'Cancel', style: 'cancel' },
-                    ]
-                  );
-                }}
-              />
-            </View>
-          </>
-        )}
-
-        {/* Dev only: the tokens the external push testing tools need.
-            Both are also printed in full in the Metro terminal at startup,
-            which is the practical way to copy them. */}
-        {__DEV__ && (
+        {/* Debug: show push token in dev mode */}
+        {__DEV__ && expoPushToken && (
           <TouchableOpacity
             style={styles.debugRow}
             onPress={() => {
-              const native = getActivePushToken();
-              Alert.alert(
-                'Push tokens (dev only)',
-                [
-                  native
-                    ? `${native.tokenType.toUpperCase()} — for Firebase Console:\n${native.token}`
-                    : 'No native token yet. Needs a development build on a physical device with notifications allowed.',
-                  '',
-                  expoPushToken
-                    ? `Expo — for expo.dev/notifications:\n${expoPushToken}`
-                    : 'No Expo token. Run `eas init` in front-end/ to create an EAS project.',
-                  '',
-                  'Both are printed in full in the Metro terminal.',
-                ].join('\n'),
-                [{ text: 'OK' }]
-              );
+              Alert.alert('Push Token', expoPushToken);
             }}
           >
             <Ionicons name="bug-outline" size={14} color="#8AACBA" />
             <Text style={styles.debugText} numberOfLines={1}>
-              {getActivePushToken()
-                ? `${getActivePushToken()!.tokenType.toUpperCase()} token ready — tap to view`
-                : 'Waiting for a device push token…'}
+              Token: {expoPushToken}
             </Text>
           </TouchableOpacity>
         )}
