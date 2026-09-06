@@ -9,7 +9,7 @@ import {
   cancelAppointment,
   getDoctorAppointments,
   updateAppointmentStatus,
-} from "../controllers/appointmentController.js";
+} from "../controller/appointmentController.js";
 
 
 

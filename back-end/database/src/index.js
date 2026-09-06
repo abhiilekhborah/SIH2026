@@ -6,8 +6,9 @@ import morgan from "morgan";
 
 
 import userAuthRoutes from "./routes/userAuthRoutes.js";
-import doctorRoutes from  "./routes/doctorRoutes.js"
-import patientRoutes from "./routes/patientRoutes.js"
+import doctorRoutes from  "./routes/doctorRoutes.js";
+import patientRoutes from "./routes/patientRoutes.js";
+import appointmentRoutes from "./routes/appointmentRoutes.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { clerkMiddleware } from "@clerk/express";
 
