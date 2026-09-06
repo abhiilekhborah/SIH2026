@@ -8,6 +8,7 @@ import {
 } from 'react-native';
 import { HamburgerButton } from './hamburger-button';
 import { NotificationButton } from './notification-button';
+import { useNotifications } from './notification-context';
 
 export interface AppHeaderProps {
   title?: string;
@@ -30,7 +31,7 @@ export function AppHeader({
   showNotification = true,
   onPressMenu,
   onPressNotification,
-  badgeCount = 0,
+  badgeCount,
   hasUnreadNotifications = false,
   leftElement,
   rightElement,
@@ -38,6 +39,10 @@ export function AppHeader({
   style,
   buttonBackgroundColor = '#F3F4F6',
 }: AppHeaderProps) {
+  const { unreadCount, openNotifications } = useNotifications();
+  const effectiveBadgeCount = badgeCount !== undefined ? badgeCount : unreadCount;
+  const handleNotificationPress = onPressNotification ?? openNotifications;
+
   return (
     <View style={[styles.container, style]}>
       {/* Left Slot: Hamburger Button or custom left element */}
@@ -69,8 +74,8 @@ export function AppHeader({
           rightElement
         ) : showNotification ? (
           <NotificationButton
-            onPress={onPressNotification}
-            badgeCount={badgeCount}
+            onPress={handleNotificationPress}
+            badgeCount={effectiveBadgeCount}
             hasUnread={hasUnreadNotifications}
             backgroundColor={buttonBackgroundColor}
           />

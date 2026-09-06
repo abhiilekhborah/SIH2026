@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "26395012672",
+    "project_id": "mediquick-4037f",
+    "storage_bucket": "mediquick-4037f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:26395012672:android:ecae6f4db43dc4c23939a5",
+        "android_client_info": {
+          "package_name": "com.anonymous.MediQuick"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB-XhAwdfo4xmiOGcAslPO2vY_wjV8swuM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
