@@ -1,11 +1,16 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
 import { useNotifications } from '@/components/notification-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MQ } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
+
+const HARDCODED_DOCTOR_UUID = '11111111-1111-1111-1111-111111111111';
+const TEST_PATIENT_UUID = '22222222-2222-2222-2222-222222222222';
+const API_BASE_URL = process.env.EXPO_PUBLIC_CONSULTATION_API_URL || 'http://localhost:5006';
 
 const { width } = Dimensions.get('window');
 
@@ -97,6 +102,118 @@ export default function AppointmentsScreen() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(new Date());
   const [selectedTime, setSelectedTime] = useState('10:00 AM');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // ── Dynamic Database & Realtime Status States ─────────────────────────────
+  const [doctorName, setDoctorName] = useState('Dr. Alexander Smith');
+  const [specialty, setSpecialty] = useState('Senior Physician • 15 Yrs Exp');
+  const [requestStatus, setRequestStatus] = useState<string | null>(null);
+  const [proposedTime, setProposedTime] = useState<string | null>(null);
+  const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
+  const [requestType, setRequestType] = useState<'direct_teleconsultation' | 'scheduled_teleconsultation'>('scheduled_teleconsultation');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // ── Realtime Sync: Fetch initial state and attach WebSocket listener ─────
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadInitialRequest = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('appointment_requests')
+          .select('*')
+          .eq('patient_id', TEST_PATIENT_UUID)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!cancelled && data && !error) {
+          setRequestStatus(data.status);
+          setProposedTime(data.proposed_time);
+          setActiveRequestId(data.id);
+        }
+      } catch (err) {
+        console.warn('[AppointmentsScreen] Error loading initial request:', err);
+      }
+    };
+
+    loadInitialRequest();
+
+    // Supabase Realtime WebSocket listener for UPDATE events
+    const channel = supabase
+      .channel(`patient_appointments_${TEST_PATIENT_UUID}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'appointment_requests',
+          filter: `patient_id=eq.${TEST_PATIENT_UUID}`,
+        },
+        (payload) => {
+          console.log('⚡ [AppointmentsScreen Realtime UPDATE]:', payload.new);
+          if (payload.new) {
+            setRequestStatus(payload.new.status);
+            setProposedTime(payload.new.proposed_time || null);
+            setActiveRequestId(payload.new.id);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // ── Dispatch Appointment Request to Backend API ────────────────────────────
+  const handleSendAppointmentRequest = async (overrideType?: 'direct_teleconsultation' | 'scheduled_teleconsultation') => {
+    const finalType = overrideType || requestType;
+    setIsSubmitting(true);
+    setRequestStatus('pending');
+    setProposedTime(null);
+
+    const formattedDate = selectedDate
+      ? `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`
+      : new Date().toISOString().split('T')[0];
+
+    const payload = {
+      doctor_id: HARDCODED_DOCTOR_UUID,
+      patient_id: TEST_PATIENT_UUID,
+      request_type: finalType,
+      requested_date: formattedDate,
+      requested_time: selectedTime,
+      notes: searchQuery ? `Patient Note: ${searchQuery}` : null,
+    };
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/v1/consultation/appointments/request`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Request failed');
+      setActiveRequestId(json.data?.id);
+    } catch (_) {
+      // Direct Supabase fallback
+      try {
+        const { data } = await supabase
+          .from('appointment_requests')
+          .insert({ ...payload, status: 'pending' })
+          .select()
+          .single();
+        if (data) setActiveRequestId(data.id);
+      } catch (err) {
+        console.warn('[AppointmentsScreen] Direct insert fallback error:', err);
+      }
+    } finally {
+      setIsSubmitting(false);
+      setShowScheduleModal(false);
+      setShowDigitalModal(false);
+    }
+  };
   
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
@@ -188,13 +305,73 @@ export default function AppointmentsScreen() {
         </View>
         
         <View style={styles.assignedDoctorCard}>
+          {requestStatus && (
+            <View style={[
+              styles.doctorStatusBadge,
+              {
+                backgroundColor:
+                  requestStatus === 'accepted'
+                    ? MQ.greenLight
+                    : requestStatus === 'rejected'
+                    ? MQ.redLight
+                    : requestStatus === 'rescheduled'
+                    ? MQ.blueLight
+                    : MQ.amberLight,
+              },
+            ]}>
+              <Ionicons
+                name={
+                  requestStatus === 'accepted'
+                    ? 'checkmark-circle'
+                    : requestStatus === 'rejected'
+                    ? 'close-circle'
+                    : requestStatus === 'rescheduled'
+                    ? 'calendar'
+                    : 'time'
+                }
+                size={14}
+                color={
+                  requestStatus === 'accepted'
+                    ? MQ.green
+                    : requestStatus === 'rejected'
+                    ? MQ.red
+                    : requestStatus === 'rescheduled'
+                    ? MQ.blue
+                    : MQ.amber
+                }
+                style={{ marginRight: 6 }}
+              />
+              <Text
+                style={[
+                  styles.doctorStatusBadgeText,
+                  {
+                    color:
+                      requestStatus === 'accepted'
+                        ? MQ.green
+                        : requestStatus === 'rejected'
+                        ? MQ.red
+                        : requestStatus === 'rescheduled'
+                        ? MQ.blue
+                        : MQ.amber,
+                  },
+                ]}
+              >
+                {requestStatus === 'rescheduled' && proposedTime
+                  ? `Rescheduled at ${new Date(proposedTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                  : requestStatus === 'pending'
+                  ? 'Request Pending'
+                  : requestStatus.charAt(0).toUpperCase() + requestStatus.slice(1)}
+              </Text>
+            </View>
+          )}
+
           <View style={styles.assignedDoctorInfo}>
             <View style={styles.doctorPhotoWrap}>
               <Ionicons name="person" size={32} color={MQ.teal} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.assignedDoctorName}>Dr. Alexander Smith</Text>
-              <Text style={styles.assignedDoctorSpecialty}>Senior Physician • 15 Yrs Exp</Text>
+              <Text style={styles.assignedDoctorName}>{doctorName}</Text>
+              <Text style={styles.assignedDoctorSpecialty}>{specialty}</Text>
               <View style={styles.ratingRow}>
                 <Ionicons name="star" size={12} color={MQ.amber} />
                 <Text style={styles.ratingText}>4.9 (120 Reviews)</Text>
@@ -314,23 +491,39 @@ export default function AppointmentsScreen() {
             <Text style={styles.modalTitle}>Digital Appointment</Text>
             <Text style={styles.modalSub}>How would you like to connect with Dr. Alexander Smith?</Text>
 
-            <TouchableOpacity style={styles.modalOptionBtn} activeOpacity={0.7}>
+            <TouchableOpacity 
+              style={styles.modalOptionBtn} 
+              activeOpacity={0.7}
+              onPress={() => {
+                setRequestType('direct_teleconsultation');
+                setShowDigitalModal(false);
+                setShowScheduleModal(true);
+              }}
+            >
               <View style={[styles.modalOptionIconWrap, { backgroundColor: MQ.purpleLight }]}>
                 <Ionicons name="chatbubbles-outline" size={24} color={MQ.purple} />
               </View>
               <View style={styles.modalOptionTextWrap}>
-                <Text style={styles.modalOptionTitle}>Request Direct Consultation</Text>
+                <Text style={styles.modalOptionTitle}>Request Direct Teleconsultation</Text>
                 <Text style={styles.modalOptionSub}>Connect instantly via chat or call.</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={MQ.textMuted} />
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.modalOptionBtn} activeOpacity={0.7} onPress={() => { setShowDigitalModal(false); setShowScheduleModal(true); }}>
+            <TouchableOpacity 
+              style={styles.modalOptionBtn} 
+              activeOpacity={0.7} 
+              onPress={() => { 
+                setRequestType('scheduled_teleconsultation');
+                setShowDigitalModal(false); 
+                setShowScheduleModal(true); 
+              }}
+            >
               <View style={[styles.modalOptionIconWrap, { backgroundColor: MQ.tealLight }]}>
                 <Ionicons name="calendar-outline" size={24} color={MQ.teal} />
               </View>
               <View style={styles.modalOptionTextWrap}>
-                <Text style={styles.modalOptionTitle}>Schedule Digital Appointment</Text>
+                <Text style={styles.modalOptionTitle}>Schedule Teleconsultation</Text>
                 <Text style={styles.modalOptionSub}>Pick a date and time for a video visit.</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={MQ.textMuted} />
@@ -374,8 +567,16 @@ export default function AppointmentsScreen() {
               ))}
             </View>
 
-            <TouchableOpacity style={styles.addApptBtn} onPress={() => setShowScheduleModal(false)}>
-              <Text style={styles.addApptBtnText}>Add Appointment</Text>
+            <TouchableOpacity 
+              style={[styles.addApptBtn, isSubmitting && { opacity: 0.7 }]} 
+              onPress={() => handleSendAppointmentRequest()}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color={MQ.bgWhite} />
+              ) : (
+                <Text style={styles.addApptBtnText}>Confirm & Send Request</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -512,4 +713,17 @@ const styles = StyleSheet.create({
   timeText: { fontSize: 13, fontWeight: '600', color: MQ.textPrimary },
   addApptBtn: { backgroundColor: MQ.teal, paddingVertical: 16, borderRadius: 16, alignItems: 'center', marginTop: 10 },
   addApptBtnText: { color: MQ.bgWhite, fontSize: 16, fontWeight: '700' },
+  doctorStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    marginBottom: 12,
+    alignSelf: 'flex-start',
+  },
+  doctorStatusBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });

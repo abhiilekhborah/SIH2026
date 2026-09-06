@@ -1,10 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Switch, Alert, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
 import { useNotifications } from '@/components/notification-context';
-import * as Notifications from 'expo-notifications';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 const TEAL = '#00B5AD';
@@ -33,70 +32,13 @@ function SettingRow({ icon, label, sublabel, color = TEAL, toggle, value, onValu
 
 export default function SettingsScreen() {
   const { openMenu } = useSideMenu();
-  const { openNotifications, expoPushToken } = useNotifications();
+  const { openNotifications } = useNotifications();
   const [notifs, setNotifs]   = useState(true);
   const [biometric, setBio]   = useState(false);
   const [darkMode, setDark]   = useState(false);
 
-  // Check the actual notification permission status on mount
-  useEffect(() => {
-    (async () => {
-      const { status } = await Notifications.getPermissionsAsync();
-      setNotifs(status === 'granted');
-    })();
-  }, []);
-
-  /**
-   * Handle push notification toggle.
-   * - If enabling: request permission (if not already granted)
-   * - If disabling: guide user to system settings (can't revoke programmatically)
-   */
-  const handleNotifToggle = useCallback(async (enabled: boolean) => {
-    if (enabled) {
-      // Request permission
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status === 'granted') {
-        setNotifs(true);
-      } else {
-        // Permission denied — guide to settings
-        Alert.alert(
-          'Notifications Blocked',
-          'Please enable notifications in your device settings to receive appointment alerts and updates.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Open Settings',
-              onPress: () => {
-                if (Platform.OS === 'ios') {
-                  Linking.openURL('app-settings:');
-                } else {
-                  Linking.openSettings();
-                }
-              },
-            },
-          ]
-        );
-      }
-    } else {
-      // Can't revoke permissions programmatically — guide to system settings
-      Alert.alert(
-        'Disable Notifications',
-        'To disable notifications, please go to your device settings for MediQuick.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Open Settings',
-            onPress: () => {
-              if (Platform.OS === 'ios') {
-                Linking.openURL('app-settings:');
-              } else {
-                Linking.openSettings();
-              }
-            },
-          },
-        ]
-      );
-    }
+  const handleNotifToggle = useCallback((enabled: boolean) => {
+    setNotifs(enabled);
   }, []);
 
   return (
@@ -142,21 +84,6 @@ export default function SettingsScreen() {
         <View style={styles.versionRow}>
           <Text style={styles.versionText}>MediQuick v1.0.0  •  SIH 2026</Text>
         </View>
-
-        {/* Debug: show push token in dev mode */}
-        {__DEV__ && expoPushToken && (
-          <TouchableOpacity
-            style={styles.debugRow}
-            onPress={() => {
-              Alert.alert('Push Token', expoPushToken);
-            }}
-          >
-            <Ionicons name="bug-outline" size={14} color="#8AACBA" />
-            <Text style={styles.debugText} numberOfLines={1}>
-              Token: {expoPushToken}
-            </Text>
-          </TouchableOpacity>
-        )}
 
         <View style={{ height: 100 }} />
       </ScrollView>
