@@ -14,17 +14,22 @@ import type {
   RemoteTrackPublication,
   RoomOptions,
   LocalTrack,
+  ConnectionState,
+  ConnectionQuality,
+  Room as RoomType,
 } from "livekit-client";
 
 // The polyfill must run before livekit-client is evaluated
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const livekit = require("livekit-client");
 const {
   Room,
   RoomEvent,
   Track,
-  ConnectionQuality,
-  ConnectionState,
+  ConnectionQuality: _ConnectionQuality,
+  ConnectionState: _ConnectionState,
   VideoPresets,
-} = require("livekit-client");
+} = livekit as typeof import("livekit-client");
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -229,7 +234,7 @@ export function useConsultation(options?: UseConsultationOptions) {
 
       room.on(
         RoomEvent.TrackSubscribed,
-        (_track, publication, participant) => {
+        (_track: any, publication: any, participant: RemoteParticipant) => {
           setState((s) => ({ ...s, remoteParticipant: participant }));
           updateRemoteTracks(participant);
         }
@@ -237,7 +242,7 @@ export function useConsultation(options?: UseConsultationOptions) {
 
       room.on(
         RoomEvent.TrackUnsubscribed,
-        (_track, _publication, participant) => {
+        (_track: any, _publication: any, participant: RemoteParticipant) => {
           updateRemoteTracks(participant);
         }
       );
@@ -263,7 +268,7 @@ export function useConsultation(options?: UseConsultationOptions) {
       await room.localParticipant.setMicrophoneEnabled(true);
 
       // Check for already-connected participants
-      room.remoteParticipants.forEach((participant) => {
+      room.remoteParticipants.forEach((participant: RemoteParticipant) => {
         setState((s) => ({ ...s, remoteParticipant: participant }));
         participant.on("trackSubscribed", () =>
           updateRemoteTracks(participant)
@@ -371,7 +376,7 @@ export function useConsultation(options?: UseConsultationOptions) {
     const room = roomRef.current;
     if (room) {
       // Unpublish all tracks and disconnect
-      room.localParticipant.trackPublications.forEach((pub) => {
+      room.localParticipant.trackPublications.forEach((pub: any) => {
         if (pub.track) {
           pub.track.stop();
         }
@@ -406,7 +411,7 @@ export function useConsultation(options?: UseConsultationOptions) {
 
       const room = roomRef.current;
       if (room) {
-        room.localParticipant.trackPublications.forEach((pub) => {
+        room.localParticipant.trackPublications.forEach((pub: any) => {
           if (pub.track) pub.track.stop();
         });
         room.disconnect(true);
