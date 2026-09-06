@@ -1,0 +1,15 @@
+{
+  "Simulator Target Bundle": "com.anonymous.MediQuick",
+  "aps": {
+    "alert": {
+      "title": "Appointment Reminder 🩺",
+      "body": "Dr. Sarah Johnson has confirmed your video consultation for 10:00 AM."
+    },
+    "sound": "default",
+    "badge": 1
+  },
+  "type": "appointment",
+  "route": "/(tabs)/history",
+  "testId": "sim-test-appointment",
+  "timestamp": "2026-01-01T10:00:00.000Z"
+}

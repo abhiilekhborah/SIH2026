@@ -1,5 +1,5 @@
 import '../polyfills'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { ClerkProvider, useUser } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
 import { Slot, useRouter } from 'expo-router'
@@ -7,49 +7,61 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { NotificationProvider, useNotifications, getNotificationIcon } from '@/components/notification-context'
-import {
-  usePushNotifications,
-  configureForegroundHandler,
-} from '@/hooks/usePushNotifications'
-import { savePushToken } from '@/lib/push-token-store'
+import { usePushNotifications } from '@/hooks/usePushNotifications'
 import { getOrCreateDbUserId } from '@/lib/supabase'
+import { configureForegroundHandler, type UserRole } from '@/utils/pushNotification'
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
 
-// Configure how foreground notifications are displayed — must be at module level
+// Decides whether a push shows a banner while the app is open — must run at
+// module level, before React renders anything.
 configureForegroundHandler()
 
 /**
- * Inner component that has access to both Clerk and Notification contexts.
- * Handles push notification registration and wiring incoming notifications
- * into the in-app notification panel.
+ * The single owner of push notifications for the whole app.
+ *
+ * Everything lives here rather than in individual screens so that listeners are
+ * attached exactly once and token registration does not depend on the user
+ * happening to visit a particular tab.
  */
 function PushNotificationBridge() {
-  const { expoPushToken, notification } = usePushNotifications()
   const { addNotification, setExpoPushToken } = useNotifications()
   const { user } = useUser()
   const router = useRouter()
 
-  // Store the push token in the notification context
+  // Clerk holds the role; Supabase holds the UUID the backend sends against.
+  const [dbUserId, setDbUserId] = useState<string | null>(null)
+  const role = (user?.unsafeMetadata?.role as UserRole | undefined) ?? null
+
   useEffect(() => {
-    if (expoPushToken) {
-      setExpoPushToken(expoPushToken)
+    if (!user) {
+      setDbUserId(null)
+      return
     }
-  }, [expoPushToken, setExpoPushToken])
 
-  // Save push token to Supabase when both token and user are available
-  useEffect(() => {
-    if (!expoPushToken || !user) return
-
+    let cancelled = false
     ;(async () => {
-      const dbUserId = await getOrCreateDbUserId(user)
-      if (dbUserId) {
-        await savePushToken(dbUserId, expoPushToken)
+      try {
+        const id = await getOrCreateDbUserId(user)
+        if (!cancelled) setDbUserId(id)
+      } catch (err) {
+        console.warn('⚠️ [push] Could not resolve Supabase user id:', err)
       }
     })()
-  }, [expoPushToken, user])
 
-  // When a push notification arrives in the foreground, add it to the panel
+    return () => {
+      cancelled = true
+    }
+  }, [user])
+
+  const { expoPushToken, notification, notificationResponse } = usePushNotifications(dbUserId, role)
+
+  // Surfaced in Settings (dev only) for the expo.dev/notifications tool
+  useEffect(() => {
+    setExpoPushToken(expoPushToken)
+  }, [expoPushToken, setExpoPushToken])
+
+  // When a notification arrives in the foreground, add it to the in-app drawer
   useEffect(() => {
     if (!notification) return
 
@@ -67,6 +79,24 @@ function PushNotificationBridge() {
       time: 'Just now',
     })
   }, [notification, addNotification])
+
+  // When the user taps a notification, deep-link to the target route if provided
+  useEffect(() => {
+    if (!notificationResponse) return
+
+    const content = notificationResponse.notification.request.content
+    const data = content.data as Record<string, unknown> | undefined
+    const route = data?.route as string | undefined
+
+    if (route) {
+      console.log('🔗 Navigating to notification route:', route)
+      try {
+        router.push(route as any)
+      } catch (err) {
+        console.warn('⚠️ Failed to navigate to notification route:', err)
+      }
+    }
+  }, [notificationResponse, router])
 
   // This component renders nothing — it's purely a side-effect bridge
   return null

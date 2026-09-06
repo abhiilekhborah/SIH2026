@@ -14,7 +14,10 @@
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSCameraUsageDescription": "MediQuick needs camera access for video consultations with your doctor.",
-        "NSMicrophoneUsageDescription": "MediQuick needs microphone access for voice consultations with your doctor."
+        "NSMicrophoneUsageDescription": "MediQuick needs microphone access for voice consultations with your doctor.",
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -31,7 +34,8 @@
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
-        "MODIFY_AUDIO_SETTINGS"
+        "MODIFY_AUDIO_SETTINGS",
+        "POST_NOTIFICATIONS"
       ]
     },
     "web": {
