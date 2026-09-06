@@ -1,13 +1,76 @@
 import '../polyfills'
-import { ClerkProvider } from '@clerk/expo'
+import { useEffect } from 'react'
+import { ClerkProvider, useUser } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
-import { Slot } from 'expo-router'
+import { Slot, useRouter } from 'expo-router'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { NotificationProvider } from '@/components/notification-context'
+import { NotificationProvider, useNotifications, getNotificationIcon } from '@/components/notification-context'
+import {
+  usePushNotifications,
+  configureForegroundHandler,
+} from '@/hooks/usePushNotifications'
+import { savePushToken } from '@/lib/push-token-store'
+import { getOrCreateDbUserId } from '@/lib/supabase'
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
+
+// Configure how foreground notifications are displayed — must be at module level
+configureForegroundHandler()
+
+/**
+ * Inner component that has access to both Clerk and Notification contexts.
+ * Handles push notification registration and wiring incoming notifications
+ * into the in-app notification panel.
+ */
+function PushNotificationBridge() {
+  const { expoPushToken, notification } = usePushNotifications()
+  const { addNotification, setExpoPushToken } = useNotifications()
+  const { user } = useUser()
+  const router = useRouter()
+
+  // Store the push token in the notification context
+  useEffect(() => {
+    if (expoPushToken) {
+      setExpoPushToken(expoPushToken)
+    }
+  }, [expoPushToken, setExpoPushToken])
+
+  // Save push token to Supabase when both token and user are available
+  useEffect(() => {
+    if (!expoPushToken || !user) return
+
+    ;(async () => {
+      const dbUserId = await getOrCreateDbUserId(user)
+      if (dbUserId) {
+        await savePushToken(dbUserId, expoPushToken)
+      }
+    })()
+  }, [expoPushToken, user])
+
+  // When a push notification arrives in the foreground, add it to the panel
+  useEffect(() => {
+    if (!notification) return
+
+    const content = notification.request.content
+    const data = content.data as Record<string, unknown> | undefined
+    const notifType = (data?.type as string) ?? 'default'
+    const { icon, iconColor } = getNotificationIcon(notifType)
+
+    addNotification({
+      id: notification.request.identifier,
+      icon,
+      iconColor,
+      title: content.title ?? 'New Notification',
+      description: content.body ?? '',
+      time: 'Just now',
+    })
+  }, [notification, addNotification])
+
+  // This component renders nothing — it's purely a side-effect bridge
+  return null
+}
 
 export default function RootLayout() {
   if (!publishableKey) {
@@ -36,6 +99,7 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
         <NotificationProvider>
+          <PushNotificationBridge />
           <Slot />
         </NotificationProvider>
       </ClerkProvider>
@@ -96,4 +160,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 })
-
