@@ -1,106 +1,13 @@
 import '../polyfills'
-import { useEffect, useState } from 'react'
-import { ClerkProvider, useUser } from '@clerk/expo'
+import { ClerkProvider } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
-import { Slot, useRouter } from 'expo-router'
+import { Slot } from 'expo-router'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { NotificationProvider, useNotifications, getNotificationIcon } from '@/components/notification-context'
-import { usePushNotifications } from '@/hooks/usePushNotifications'
-import { getOrCreateDbUserId } from '@/lib/supabase'
-import { configureForegroundHandler, type UserRole } from '@/utils/pushNotification'
+import { NotificationProvider } from '@/components/notification-context'
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
-
-// Decides whether a push shows a banner while the app is open — must run at
-// module level, before React renders anything.
-configureForegroundHandler()
-
-/**
- * The single owner of push notifications for the whole app.
- *
- * Everything lives here rather than in individual screens so that listeners are
- * attached exactly once and token registration does not depend on the user
- * happening to visit a particular tab.
- */
-function PushNotificationBridge() {
-  const { addNotification, setExpoPushToken } = useNotifications()
-  const { user } = useUser()
-  const router = useRouter()
-
-  // Clerk holds the role; Supabase holds the UUID the backend sends against.
-  const [dbUserId, setDbUserId] = useState<string | null>(null)
-  const role = (user?.unsafeMetadata?.role as UserRole | undefined) ?? null
-
-  useEffect(() => {
-    if (!user) {
-      setDbUserId(null)
-      return
-    }
-
-    let cancelled = false
-    ;(async () => {
-      try {
-        const id = await getOrCreateDbUserId(user)
-        if (!cancelled) setDbUserId(id)
-      } catch (err) {
-        console.warn('⚠️ [push] Could not resolve Supabase user id:', err)
-      }
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [user])
-
-  const { expoPushToken, notification, notificationResponse } = usePushNotifications(dbUserId, role)
-
-  // Surfaced in Settings (dev only) for the expo.dev/notifications tool
-  useEffect(() => {
-    setExpoPushToken(expoPushToken)
-  }, [expoPushToken, setExpoPushToken])
-
-  // When a notification arrives in the foreground, add it to the in-app drawer
-  useEffect(() => {
-    if (!notification) return
-
-    const content = notification.request.content
-    const data = content.data as Record<string, unknown> | undefined
-    const notifType = (data?.type as string) ?? 'default'
-    const { icon, iconColor } = getNotificationIcon(notifType)
-
-    addNotification({
-      id: notification.request.identifier,
-      icon,
-      iconColor,
-      title: content.title ?? 'New Notification',
-      description: content.body ?? '',
-      time: 'Just now',
-    })
-  }, [notification, addNotification])
-
-  // When the user taps a notification, deep-link to the target route if provided
-  useEffect(() => {
-    if (!notificationResponse) return
-
-    const content = notificationResponse.notification.request.content
-    const data = content.data as Record<string, unknown> | undefined
-    const route = data?.route as string | undefined
-
-    if (route) {
-      console.log('🔗 Navigating to notification route:', route)
-      try {
-        router.push(route as any)
-      } catch (err) {
-        console.warn('⚠️ Failed to navigate to notification route:', err)
-      }
-    }
-  }, [notificationResponse, router])
-
-  // This component renders nothing — it's purely a side-effect bridge
-  return null
-}
 
 export default function RootLayout() {
   if (!publishableKey) {
@@ -125,11 +32,9 @@ export default function RootLayout() {
   }
 
   return (
-    // Required once at the root so gestures (the slide button) work on Android.
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
         <NotificationProvider>
-          <PushNotificationBridge />
           <Slot />
         </NotificationProvider>
       </ClerkProvider>
