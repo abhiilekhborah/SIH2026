@@ -14,7 +14,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useNotifications } from './notification-context';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = Math.min(SCREEN_WIDTH * 0.78, 320);
@@ -28,7 +27,6 @@ export function SideMenu({ visible, onClose }: SideMenuProps) {
   const router = useRouter();
   const { user } = useUser();
   const { signOut } = useAuth();
-  const { openNotifications } = useNotifications();
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -135,17 +133,6 @@ export function SideMenu({ visible, onClose }: SideMenuProps) {
             >
               <Ionicons name="person-outline" size={22} color="#1A66E8" />
               <Text style={styles.menuText}>Profile</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.menuItem}
-              onPress={() => {
-                onClose();
-                openNotifications();
-              }}
-            >
-              <Ionicons name="notifications-outline" size={22} color="#1A66E8" />
-              <Text style={styles.menuText}>Notifications</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

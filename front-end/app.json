@@ -12,15 +12,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.MediQuick",
       "googleServicesFile": "./GoogleService-Info.plist",
-      "entitlements": {
-        "aps-environment": "development"
-      },
       "infoPlist": {
         "NSCameraUsageDescription": "MediQuick needs camera access for video consultations with your doctor.",
-        "NSMicrophoneUsageDescription": "MediQuick needs microphone access for voice consultations with your doctor.",
-        "UIBackgroundModes": [
-          "remote-notification"
-        ]
+        "NSMicrophoneUsageDescription": "MediQuick needs microphone access for voice consultations with your doctor."
       }
     },
     "android": {
@@ -37,8 +31,7 @@
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",
-        "MODIFY_AUDIO_SETTINGS",
-        "POST_NOTIFICATIONS"
+        "MODIFY_AUDIO_SETTINGS"
       ]
     },
     "web": {
