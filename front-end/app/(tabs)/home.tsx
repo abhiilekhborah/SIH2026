@@ -118,7 +118,7 @@ function StatBadge({ label, value, unit, color }: { label: string; value: string
 // ─── Home ─────────────────────────────────────────────────────────────────────
 export default function Home() {
   const { openMenu }          = useSideMenu();
-  const { openNotifications } = useNotifications();
+  const { openNotifications, unreadCount } = useNotifications();
   const { user }              = useUser();
   const router                = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
@@ -184,6 +184,7 @@ export default function Home() {
         showNotification={true}
         onPressMenu={openMenu}
         onPressNotification={openNotifications}
+        badgeCount={unreadCount}
         style={styles.header}
         buttonBackgroundColor="rgba(0,181,173,0.12)"
       />

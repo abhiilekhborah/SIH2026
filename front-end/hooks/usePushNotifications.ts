@@ -71,11 +71,11 @@ export function usePushNotifications(
   useEffect(() => {
     const detach = attachNotificationListeners({
       onReceived: (notif) => {
-        console.log('🔔 [push] Received in foreground:', notif.request.content.title);
+        console.log('[push] Received in foreground:', notif.request.content.title);
         setNotification(notif);
       },
       onResponse: (response) => {
-        console.log('👆 [push] Tapped:', response.notification.request.content.title);
+        console.log('[push] Tapped:', response.notification.request.content.title);
         setNotificationResponse(response);
       },
       onTokenRefresh: (refreshed) => {

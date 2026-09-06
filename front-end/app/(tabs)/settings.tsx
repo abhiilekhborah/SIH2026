@@ -4,11 +4,28 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
 import { useNotifications } from '@/components/notification-context';
-import * as Notifications from 'expo-notifications';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { getActivePushToken, scheduleDevTestNotification } from '@/utils/pushNotification';
 
 const TEAL = '#00B5AD';
+
+const getNotificationsModule = () => {
+  try {
+    const { requireNativeModule } = require('expo-modules-core');
+    if (requireNativeModule) {
+      const nativeMod = requireNativeModule('ExpoPushTokenManager');
+      if (!nativeMod) return null;
+    }
+  } catch (e) {
+    return null;
+  }
+
+  try {
+    return require('expo-notifications');
+  } catch (e) {
+    return null;
+  }
+};
 
 function SettingRow({ icon, label, sublabel, color = TEAL, toggle, value, onValueChange, onPress }: {
   icon: any; label: string; sublabel?: string; color?: string;
@@ -42,8 +59,11 @@ export default function SettingsScreen() {
   // Check the actual notification permission status on mount
   useEffect(() => {
     (async () => {
-      const { status } = await Notifications.getPermissionsAsync();
-      setNotifs(status === 'granted');
+      const Notifications = getNotificationsModule();
+      if (Notifications?.getPermissionsAsync) {
+        const { status } = await Notifications.getPermissionsAsync();
+        setNotifs(status === 'granted');
+      }
     })();
   }, []);
 
@@ -53,31 +73,34 @@ export default function SettingsScreen() {
    * - If disabling: guide user to system settings (can't revoke programmatically)
    */
   const handleNotifToggle = useCallback(async (enabled: boolean) => {
+    const Notifications = getNotificationsModule();
     if (enabled) {
       // Request permission
-      const { status } = await Notifications.requestPermissionsAsync();
-      if (status === 'granted') {
-        setNotifs(true);
-      } else {
-        // Permission denied — guide to settings
-        Alert.alert(
-          'Notifications Blocked',
-          'Please enable notifications in your device settings to receive appointment alerts and updates.',
-          [
-            { text: 'Cancel', style: 'cancel' },
-            {
-              text: 'Open Settings',
-              onPress: () => {
-                if (Platform.OS === 'ios') {
-                  Linking.openURL('app-settings:');
-                } else {
-                  Linking.openSettings();
-                }
-              },
-            },
-          ]
-        );
+      if (Notifications?.requestPermissionsAsync) {
+        const { status } = await Notifications.requestPermissionsAsync();
+        if (status === 'granted') {
+          setNotifs(true);
+          return;
+        }
       }
+      // Permission denied — guide to settings
+      Alert.alert(
+        'Notifications Blocked',
+        'Please enable notifications in your device settings to receive appointment alerts and updates.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Open Settings',
+            onPress: () => {
+              if (Platform.OS === 'ios') {
+                Linking.openURL('app-settings:');
+              } else {
+                Linking.openSettings();
+              }
+            },
+          },
+        ]
+      );
     } else {
       // Can't revoke permissions programmatically — guide to system settings
       Alert.alert(
@@ -121,6 +144,27 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>Preferences</Text>
         <View style={styles.group}>
           <SettingRow icon="notifications-outline"  label="Push Notifications"  sublabel={notifs ? 'Enabled — receiving alerts' : 'Disabled — tap to enable'}   toggle value={notifs}    onValueChange={handleNotifToggle} />
+          <View style={styles.divider} />
+          <SettingRow
+            icon="key-outline"
+            label="Device Push Token"
+            sublabel={
+              expoPushToken
+                ? `${expoPushToken.slice(0, 24)}... (Tap to view)`
+                : 'Tap to view token status'
+            }
+            color="#1976D2"
+            onPress={() => {
+              if (expoPushToken) {
+                Alert.alert('Device Push Token', expoPushToken, [{ text: 'OK' }]);
+              } else {
+                Alert.alert(
+                  'Push Token Status',
+                  'No push token generated yet.\n\nPush tokens are generated when running on a physical phone with native build enabled.'
+                );
+              }
+            }}
+          />
           <View style={styles.divider} />
           <SettingRow icon="finger-print-outline"   label="Biometric Login"     sublabel="Use Face ID or fingerprint to login" toggle value={biometric} onValueChange={setBio} />
           <View style={styles.divider} />

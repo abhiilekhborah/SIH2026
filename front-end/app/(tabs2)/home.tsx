@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useUser } from '@clerk/expo';
 import { useRouter } from 'expo-router';
+import { useNotifications } from '@/components/notification-context';
+import { NotificationButton } from '@/components/notification-button';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.75;
@@ -95,9 +97,10 @@ const MOCK_STAFF = [
   { id: '4', name: 'Mike Ross', role: 'Receptionist' },
 ];
 
-export default function Home() {
-  const { user } = useUser();
+export default function DoctorHomeScreen() {
   const router = useRouter();
+  const { user } = useUser();
+  const { openNotifications, unreadCount } = useNotifications();
 
   // Profile Info
   const userName = `Dr. ${user?.firstName || 'Sajibur Rahman'}`;
@@ -126,7 +129,7 @@ export default function Home() {
     setMenuVisible(true);
     Animated.timing(slideAnim, {
       toValue: 0,
-      duration: 300,
+      duration: 250,
       easing: Easing.out(Easing.exp),
       useNativeDriver: true,
     }).start();
@@ -169,10 +172,12 @@ export default function Home() {
           </View>
 
           <View style={styles.headerRight}>
-            <Pressable style={styles.notificationButton} onPress={() => setNotificationsVisible(true)}>
-              <Ionicons name="notifications" size={24} color={COLORS.primaryBlue} />
-              <View style={styles.notificationBadge} />
-            </Pressable>
+            <NotificationButton
+              onPress={openNotifications}
+              badgeCount={unreadCount}
+              color={COLORS.primaryBlue}
+              backgroundColor="transparent"
+            />
           </View>
         </View>
 
