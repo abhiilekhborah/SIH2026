@@ -82,13 +82,6 @@ export default function Profile() {
             </View>
           </View>
 
-          {/* Stats Strip */}
-          <View style={styles.statsStrip}>
-            <StatItem icon="calendar" iconColor="#8b5cf6" iconBg="#f3e8ff" label="Member Since" value="May 2024" />
-            <StatItem icon="heart" iconColor="#10b981" iconBg="#d1fae5" label="Health Score" value="92/100" />
-            <StatItem icon="shield-checkmark" iconColor="#3b82f6" iconBg="#dbeafe" label="Health Plan" value="Premium" />
-            <StatItem icon="star" iconColor="#f59e0b" iconBg="#fef3c7" label="Rewards" value="1,250 pts" />
-          </View>
         </LinearGradient>
 
         {/* Options List */}
@@ -116,20 +109,6 @@ export default function Profile() {
         <View style={{ height: 100 }} />
       </ScrollView>
     </SafeAreaView>
-  );
-}
-
-function StatItem({ icon, iconColor, iconBg, label, value }: { icon: any, iconColor: string, iconBg: string, label: string, value: string }) {
-  return (
-    <View style={styles.statItem}>
-      <View style={[styles.statIconContainer, { backgroundColor: iconBg }]}>
-        <Ionicons name={icon} size={16} color={iconColor} />
-      </View>
-      <View style={styles.statTextContainer}>
-        <Text style={styles.statLabel}>{label}</Text>
-        <Text style={[styles.statValue, { color: icon === 'heart' ? '#10b981' : '#111827' }]}>{value}</Text>
-      </View>
-    </View>
   );
 }
 
@@ -281,45 +260,6 @@ const styles = StyleSheet.create({
     flex: 1,
     lineHeight: 16,
     fontWeight: '500',
-  },
-  statsStrip: {
-    flexDirection: 'row',
-    backgroundColor: '#ffffff',
-    borderRadius: 20,
-    padding: 16,
-    justifyContent: 'space-between',
-    shadowColor: '#6366f1',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.06,
-    shadowRadius: 20,
-    elevation: 4,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statTextContainer: {
-    alignItems: 'center',
-  },
-  statLabel: {
-    fontSize: 10,
-    color: '#64748b',
-    textAlign: 'center',
-    marginBottom: 2,
-    fontWeight: '500',
-  },
-  statValue: {
-    fontSize: 12,
-    fontWeight: '800',
-    textAlign: 'center',
   },
   optionsContainer: {
     backgroundColor: '#ffffff',
