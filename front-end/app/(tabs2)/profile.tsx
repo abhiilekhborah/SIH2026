@@ -60,6 +60,7 @@ export default function Profile() {
               router.replace('/');
             } catch (err) {
               console.error('Logout error:', err);
+              router.replace('/');
             }
           },
         },

@@ -55,7 +55,11 @@ export default function DoctorActiveCall() {
     if (params.consultationId) {
       endConsultationAPI(params.consultationId);
     }
-    router.back();
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs2)/consultation' as any);
+    }
   }, [disconnect, params.consultationId, router]);
 
   // ── Render ─────────────────────────────────────────────────────────────
