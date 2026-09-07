@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput, ActivityIndicator } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Modal, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
@@ -15,7 +15,27 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_CONSULTATION_API_URL || 'http://loc
 
 const { width } = Dimensions.get('window');
 
-function AppointmentCard({ doctorName, specialty, date, time, status, rating, style }: { doctorName: string; specialty: string; date: string; time: string; status: string; rating: string; style?: any }) {
+function AppointmentCard({
+  doctorName,
+  specialty,
+  date,
+  time,
+  status,
+  rating,
+  onCancel,
+  onReschedule,
+  style,
+}: {
+  doctorName: string;
+  specialty: string;
+  date: string;
+  time: string;
+  status: string;
+  rating: string;
+  onCancel?: () => void;
+  onReschedule?: () => void;
+  style?: any;
+}) {
   const isUpcoming = status === 'Upcoming';
   return (
     <TouchableOpacity style={[styles.appointmentCard, style]} activeOpacity={0.8}>
@@ -47,9 +67,16 @@ function AppointmentCard({ doctorName, specialty, date, time, status, rating, st
           <Text style={styles.dateTimeText}>{time}</Text>
         </View>
         {isUpcoming && (
-          <TouchableOpacity style={styles.rescheduleBtn}>
-            <Text style={styles.rescheduleBtnText}>Reschedule</Text>
-          </TouchableOpacity>
+          <View style={styles.cardActionsRow}>
+            {onCancel && (
+              <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} activeOpacity={0.7}>
+                <Text style={styles.cancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity style={styles.rescheduleBtn} onPress={onReschedule} activeOpacity={0.7}>
+              <Text style={styles.rescheduleBtnText}>Reschedule</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     </TouchableOpacity>
@@ -115,6 +142,20 @@ export default function AppointmentsScreen() {
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const [requestType, setRequestType] = useState<'direct_teleconsultation' | 'scheduled_teleconsultation'>('scheduled_teleconsultation');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  type UpcomingAppointmentItem = {
+    id: string;
+    appointmentId?: string;
+    requestId?: string;
+    doctorName: string;
+    specialty: string;
+    date: string;
+    time: string;
+    status: string;
+    rating: string;
+  };
+
+  const [upcomingAppointments, setUpcomingAppointments] = useState<UpcomingAppointmentItem[]>([]);
+  const [loadingUpcoming, setLoadingUpcoming] = useState(false);
 
   // ── 1. Fetch Registered Doctor & Current Patient from Database ────────────
   useEffect(() => {
@@ -185,6 +226,207 @@ export default function AppointmentsScreen() {
     };
   }, [user?.id]);
 
+  // ── Load Upcoming Appointments (Accepted / Scheduled) ────────────────────
+  const loadUpcomingAppointments = async () => {
+    if (!patientId) return;
+    try {
+      setLoadingUpcoming(true);
+
+      // 1. Fetch appointments table records for this patient
+      const { data: appts } = await supabase
+        .from('appointments')
+        .select('*')
+        .eq('patient_id', patientId)
+        .in('status', ['scheduled', 'accepted'])
+        .order('scheduled_at', { ascending: true });
+
+      // 2. Fetch accepted appointment requests
+      const { data: acceptedReqs } = await supabase
+        .from('appointment_requests')
+        .select('*')
+        .eq('patient_id', patientId)
+        .eq('status', 'accepted')
+        .order('requested_date', { ascending: true });
+
+      // 3. Resolve doctors
+      const doctorIds = new Set<string>();
+      if (appts) appts.forEach(a => a.doctor_id && doctorIds.add(a.doctor_id));
+      if (acceptedReqs) acceptedReqs.forEach(r => r.doctor_id && doctorIds.add(r.doctor_id));
+      if (doctorId) doctorIds.add(doctorId);
+
+      let docMap: Record<string, { name: string; specialty: string }> = {};
+      if (doctorIds.size > 0) {
+        const { data: docs } = await supabase
+          .from('doctor_profiles')
+          .select('id, name, specialization, experience_years')
+          .in('id', Array.from(doctorIds));
+
+        if (docs) {
+          docs.forEach(d => {
+            const dName = d.name ? (d.name.startsWith('Dr') ? d.name : `Dr. ${d.name}`) : 'Dr. Subhajit Singha';
+            const spec = `${d.specialization || 'General Physician'} • ${d.experience_years ? `${d.experience_years} Yrs Exp` : 'Consultant'}`;
+            docMap[d.id] = { name: dName, specialty: spec };
+          });
+        }
+      }
+
+      const list: UpcomingAppointmentItem[] = [];
+      const handledRequestIds = new Set<string>();
+
+      if (appts && appts.length > 0) {
+        for (const a of appts) {
+          if (a.appointment_request_id) handledRequestIds.add(a.appointment_request_id);
+          const doc = docMap[a.doctor_id] || { name: doctorName, specialty };
+
+          let dateStr = 'Today';
+          let timeStr = '10:00 AM';
+          if (a.scheduled_at) {
+            try {
+              const dt = new Date(a.scheduled_at);
+              if (!isNaN(dt.getTime())) {
+                const today = new Date();
+                if (dt.toDateString() === today.toDateString()) {
+                  dateStr = 'Today';
+                } else {
+                  const tmrw = new Date();
+                  tmrw.setDate(tmrw.getDate() + 1);
+                  if (dt.toDateString() === tmrw.toDateString()) {
+                    dateStr = 'Tomorrow';
+                  } else {
+                    dateStr = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                  }
+                }
+                timeStr = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+              }
+            } catch (_) {}
+          }
+
+          list.push({
+            id: a.id,
+            appointmentId: a.id,
+            requestId: a.appointment_request_id || undefined,
+            doctorName: doc.name,
+            specialty: doc.specialty,
+            date: dateStr,
+            time: timeStr,
+            status: 'Upcoming',
+            rating: '4.9',
+          });
+        }
+      }
+
+      if (acceptedReqs && acceptedReqs.length > 0) {
+        for (const req of acceptedReqs) {
+          if (handledRequestIds.has(req.id)) continue;
+          const doc = docMap[req.doctor_id] || { name: doctorName, specialty };
+
+          let dateStr = req.requested_date || 'Today';
+          try {
+            if (req.requested_date) {
+              const dt = new Date(req.requested_date);
+              const today = new Date();
+              if (dt.toDateString() === today.toDateString()) {
+                dateStr = 'Today';
+              } else {
+                const tmrw = new Date();
+                tmrw.setDate(tmrw.getDate() + 1);
+                if (dt.toDateString() === tmrw.toDateString()) {
+                  dateStr = 'Tomorrow';
+                } else {
+                  dateStr = dt.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+                }
+              }
+            }
+          } catch (_) {}
+
+          list.push({
+            id: req.id,
+            requestId: req.id,
+            doctorName: doc.name,
+            specialty: doc.specialty,
+            date: dateStr,
+            time: req.requested_time || '10:00 AM',
+            status: 'Upcoming',
+            rating: '4.9',
+          });
+        }
+      }
+
+      setUpcomingAppointments(list);
+    } catch (err) {
+      console.warn('[AppointmentsScreen] Error loading upcoming appointments:', err);
+    } finally {
+      setLoadingUpcoming(false);
+    }
+  };
+
+  // ── Patient Cancel Appointment Handler ──────────────────────────────────
+  const handleCancelAppointment = (item: UpcomingAppointmentItem) => {
+    Alert.alert(
+      'Cancel Appointment',
+      `Are you sure you want to cancel your appointment with ${item.doctorName}?`,
+      [
+        { text: 'Keep Appointment', style: 'cancel' },
+        {
+          text: 'Cancel Appointment',
+          style: 'destructive',
+          onPress: () => confirmCancelAppointment(item),
+        },
+      ]
+    );
+  };
+
+  const confirmCancelAppointment = async (item: UpcomingAppointmentItem) => {
+    // Optimistically remove from upcoming appointments list so it disappears immediately
+    setUpcomingAppointments((prev) =>
+      prev.filter(
+        (a) =>
+          a.id !== item.id &&
+          (!item.appointmentId || a.appointmentId !== item.appointmentId) &&
+          (!item.requestId || a.requestId !== item.requestId)
+      )
+    );
+
+    try {
+      if (item.appointmentId) {
+        await supabase
+          .from('appointments')
+          .update({ status: 'cancelled' })
+          .eq('id', item.appointmentId);
+      }
+      if (item.requestId) {
+        await supabase
+          .from('appointment_requests')
+          .update({ status: 'rejected' })
+          .eq('id', item.requestId);
+      }
+      if (!item.appointmentId && !item.requestId) {
+        await supabase
+          .from('appointments')
+          .update({ status: 'cancelled' })
+          .eq('id', item.id);
+        await supabase
+          .from('appointment_requests')
+          .update({ status: 'rejected' })
+          .eq('id', item.id);
+      }
+
+      // If this was the active request shown on Assigned Doctor card, reset it
+      if (
+        activeRequestId &&
+        (item.requestId === activeRequestId || item.id === activeRequestId)
+      ) {
+        setRequestStatus(null);
+        setProposedTime(null);
+        setActiveRequestId(null);
+      }
+    } catch (err) {
+      console.warn('[AppointmentsScreen] Error canceling appointment:', err);
+    } finally {
+      loadUpcomingAppointments();
+    }
+  };
+
   // ── 2. Realtime Sync: Fetch latest request and listen for status updates ───
   useEffect(() => {
     if (!patientId) return;
@@ -211,10 +453,11 @@ export default function AppointmentsScreen() {
     };
 
     loadInitialRequest();
+    loadUpcomingAppointments();
 
-    // Supabase Realtime WebSocket listener for this patient's appointment updates
-    const channel = supabase
-      .channel(`patient_appointments_${patientId}`)
+    // Supabase Realtime WebSocket listener for appointment_requests
+    const reqChannel = supabase
+      .channel(`patient_requests_${patientId}`)
       .on(
         'postgres_changes',
         {
@@ -224,19 +467,39 @@ export default function AppointmentsScreen() {
           filter: `patient_id=eq.${patientId}`,
         },
         (payload: any) => {
-          console.log('⚡ [AppointmentsScreen Realtime event]:', payload);
+          console.log('⚡ [AppointmentsScreen Realtime request event]:', payload);
           if (payload.new) {
             setRequestStatus(payload.new.status);
             setProposedTime(payload.new.proposed_time || null);
             setActiveRequestId(payload.new.id);
           }
+          loadUpcomingAppointments();
+        }
+      )
+      .subscribe();
+
+    // Supabase Realtime WebSocket listener for appointments table
+    const apptChannel = supabase
+      .channel(`patient_appts_${patientId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointments',
+          filter: `patient_id=eq.${patientId}`,
+        },
+        (payload: any) => {
+          console.log('⚡ [AppointmentsScreen Realtime appointment event]:', payload);
+          loadUpcomingAppointments();
         }
       )
       .subscribe();
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      supabase.removeChannel(reqChannel);
+      supabase.removeChannel(apptChannel);
     };
   }, [patientId]);
 
@@ -494,23 +757,26 @@ export default function AppointmentsScreen() {
           <Text style={styles.sectionTitle}>Upcoming</Text>
         </View>
         
-        <AppointmentCard 
-          doctorName="Dr. Sarah Jenkins"
-          specialty="Cardiologist"
-          date="Today"
-          time="2:30 PM"
-          status="Upcoming"
-          rating="4.9"
-        />
-
-        <AppointmentCard 
-          doctorName="Dr. Robert Chen"
-          specialty="General Physician"
-          date="Tomorrow, 12 Aug"
-          time="10:00 AM"
-          status="Upcoming"
-          rating="4.8"
-        />
+        {upcomingAppointments.length > 0 ? (
+          upcomingAppointments.map((appt) => (
+            <AppointmentCard 
+              key={appt.id}
+              doctorName={appt.doctorName}
+              specialty={appt.specialty}
+              date={appt.date}
+              time={appt.time}
+              status={appt.status}
+              rating={appt.rating}
+              onCancel={() => handleCancelAppointment(appt)}
+            />
+          ))
+        ) : (
+          <View style={styles.emptyUpcomingCard}>
+            <Ionicons name="calendar-outline" size={24} color={MQ.teal} style={{ marginBottom: 6 }} />
+            <Text style={styles.emptyUpcomingText}>No upcoming appointments</Text>
+            <Text style={styles.emptyUpcomingSubtext}>Accepted appointments will appear here automatically.</Text>
+          </View>
+        )}
 
         {/* Past Appointments */}
         <View style={styles.sectionHeader}>
@@ -808,5 +1074,43 @@ const styles = StyleSheet.create({
   doctorStatusBadgeText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  cardActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cancelBtn: {
+    backgroundColor: MQ.redLight,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  cancelBtnText: {
+    color: MQ.red,
+    fontWeight: '700',
+    fontSize: 12,
+  },
+  emptyUpcomingCard: {
+    backgroundColor: MQ.glassBg,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: MQ.tealBorder,
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  emptyUpcomingText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: MQ.textPrimary,
+    marginBottom: 4,
+  },
+  emptyUpcomingSubtext: {
+    fontSize: 13,
+    color: MQ.textSecondary,
+    textAlign: 'center',
   },
 });
