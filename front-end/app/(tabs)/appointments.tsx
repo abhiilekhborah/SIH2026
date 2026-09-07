@@ -7,9 +7,10 @@ import { useNotifications } from '@/components/notification-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MQ } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { useUser } from '@clerk/expo';
 
-const HARDCODED_DOCTOR_UUID = '11111111-1111-1111-1111-111111111111';
-const TEST_PATIENT_UUID = '22222222-2222-2222-2222-222222222222';
+const FALLBACK_DOCTOR_UUID = '20a37299-a102-4932-bdb5-d46fbd29d03a';
+const FALLBACK_PATIENT_UUID = '5d06dbe3-a250-44d3-ac48-311c4d202e4f';
 const API_BASE_URL = process.env.EXPO_PUBLIC_CONSULTATION_API_URL || 'http://localhost:5006';
 
 const { width } = Dimensions.get('window');
@@ -94,6 +95,7 @@ function LabCard({ name, tests, rating }: { name: string, tests: string, rating:
 }
 
 export default function AppointmentsScreen() {
+  const { user } = useUser();
   const { openMenu } = useSideMenu();
   const { openNotifications } = useNotifications();
   const [showDigitalModal, setShowDigitalModal] = useState(false);
@@ -104,16 +106,88 @@ export default function AppointmentsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // ── Dynamic Database & Realtime Status States ─────────────────────────────
-  const [doctorName, setDoctorName] = useState('Dr. Alexander Smith');
-  const [specialty, setSpecialty] = useState('Senior Physician • 15 Yrs Exp');
+  const [doctorId, setDoctorId] = useState<string>(FALLBACK_DOCTOR_UUID);
+  const [patientId, setPatientId] = useState<string>(FALLBACK_PATIENT_UUID);
+  const [doctorName, setDoctorName] = useState('Dr. Subhajit Singha');
+  const [specialty, setSpecialty] = useState('General Physician • Specialist');
   const [requestStatus, setRequestStatus] = useState<string | null>(null);
   const [proposedTime, setProposedTime] = useState<string | null>(null);
   const [activeRequestId, setActiveRequestId] = useState<string | null>(null);
   const [requestType, setRequestType] = useState<'direct_teleconsultation' | 'scheduled_teleconsultation'>('scheduled_teleconsultation');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // ── Realtime Sync: Fetch initial state and attach WebSocket listener ─────
+  // ── 1. Fetch Registered Doctor & Current Patient from Database ────────────
   useEffect(() => {
+    let cancelled = false;
+
+    const loadProfiles = async () => {
+      try {
+        // Fetch registered doctor from doctor_profiles
+        const { data: doc, error: docErr } = await supabase
+          .from('doctor_profiles')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (!cancelled && doc && !docErr) {
+          setDoctorId(doc.id);
+          const formatted = doc.name
+            ? (doc.name.startsWith('Dr') ? doc.name : `Dr. ${doc.name}`)
+            : 'Dr. Subhajit Singha';
+          setDoctorName(formatted);
+          const spec = `${doc.specialization || 'General Physician'} • ${
+            doc.experience_years ? `${doc.experience_years} Yrs Exp` : 'Consultant'
+          }`;
+          setSpecialty(spec);
+        }
+
+        // Resolve patient profile from patient_profiles
+        let resolvedPatId: string | null = null;
+        if (user?.id) {
+          const { data: dbUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('clerk_id', user.id)
+            .maybeSingle();
+
+          if (dbUser?.id) {
+            const { data: pat } = await supabase
+              .from('patient_profiles')
+              .select('id, name')
+              .eq('user_id', dbUser.id)
+              .maybeSingle();
+            if (pat?.id) resolvedPatId = pat.id;
+          }
+        }
+
+        if (!resolvedPatId) {
+          const { data: fallbackPat } = await supabase
+            .from('patient_profiles')
+            .select('id, name')
+            .limit(1)
+            .maybeSingle();
+          if (fallbackPat?.id) resolvedPatId = fallbackPat.id;
+        }
+
+        if (!cancelled && resolvedPatId) {
+          setPatientId(resolvedPatId);
+        }
+      } catch (err) {
+        console.warn('[AppointmentsScreen] Profile resolution error:', err);
+      }
+    };
+
+    loadProfiles();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id]);
+
+  // ── 2. Realtime Sync: Fetch latest request and listen for status updates ───
+  useEffect(() => {
+    if (!patientId) return;
     let cancelled = false;
 
     const loadInitialRequest = async () => {
@@ -121,7 +195,7 @@ export default function AppointmentsScreen() {
         const { data, error } = await supabase
           .from('appointment_requests')
           .select('*')
-          .eq('patient_id', TEST_PATIENT_UUID)
+          .eq('patient_id', patientId)
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -138,19 +212,19 @@ export default function AppointmentsScreen() {
 
     loadInitialRequest();
 
-    // Supabase Realtime WebSocket listener for UPDATE events
+    // Supabase Realtime WebSocket listener for this patient's appointment updates
     const channel = supabase
-      .channel(`patient_appointments_${TEST_PATIENT_UUID}`)
+      .channel(`patient_appointments_${patientId}`)
       .on(
         'postgres_changes',
         {
-          event: 'UPDATE',
+          event: '*',
           schema: 'public',
           table: 'appointment_requests',
-          filter: `patient_id=eq.${TEST_PATIENT_UUID}`,
+          filter: `patient_id=eq.${patientId}`,
         },
-        (payload) => {
-          console.log('⚡ [AppointmentsScreen Realtime UPDATE]:', payload.new);
+        (payload: any) => {
+          console.log('⚡ [AppointmentsScreen Realtime event]:', payload);
           if (payload.new) {
             setRequestStatus(payload.new.status);
             setProposedTime(payload.new.proposed_time || null);
@@ -164,9 +238,9 @@ export default function AppointmentsScreen() {
       cancelled = true;
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [patientId]);
 
-  // ── Dispatch Appointment Request to Backend API ────────────────────────────
+  // ── 3. Dispatch Appointment Request to Backend API / Supabase ─────────────
   const handleSendAppointmentRequest = async (overrideType?: 'direct_teleconsultation' | 'scheduled_teleconsultation') => {
     const finalType = overrideType || requestType;
     setIsSubmitting(true);
@@ -178,8 +252,8 @@ export default function AppointmentsScreen() {
       : new Date().toISOString().split('T')[0];
 
     const payload = {
-      doctor_id: HARDCODED_DOCTOR_UUID,
-      patient_id: TEST_PATIENT_UUID,
+      doctor_id: doctorId,
+      patient_id: patientId,
       request_type: finalType,
       requested_date: formattedDate,
       requested_time: selectedTime,
@@ -212,6 +286,7 @@ export default function AppointmentsScreen() {
       setIsSubmitting(false);
       setShowScheduleModal(false);
       setShowDigitalModal(false);
+      setShowInVisitModal(false);
     }
   };
   
@@ -615,8 +690,16 @@ export default function AppointmentsScreen() {
               ))}
             </View>
 
-            <TouchableOpacity style={styles.addApptBtn} onPress={() => setShowInVisitModal(false)}>
-              <Text style={styles.addApptBtnText}>Send Request</Text>
+            <TouchableOpacity
+              style={[styles.addApptBtn, isSubmitting && { opacity: 0.7 }]}
+              onPress={() => handleSendAppointmentRequest('direct_teleconsultation')}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <ActivityIndicator color={MQ.bgWhite} />
+              ) : (
+                <Text style={styles.addApptBtnText}>Send Request</Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>

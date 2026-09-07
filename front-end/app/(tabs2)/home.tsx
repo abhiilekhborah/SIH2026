@@ -10,12 +10,14 @@ import {
   Animated,
   FlatList,
   Easing,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { useUser } from '@clerk/expo';
 import { useRouter } from 'expo-router';
+import { supabase } from '@/lib/supabase';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.75;
@@ -124,6 +126,100 @@ export default function Home() {
 
   // Animation for left-side sidebar drawer
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+
+  const [connectionRequests, setConnectionRequests] = useState<any[]>([]);
+
+  const fetchRequests = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('appointment_requests')
+        .select('*, patient:patient_profiles(*)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
+
+      if (data && !error) {
+        const formatted = data.map((req: any) => ({
+          id: req.id,
+          raw: req,
+          name: req.patient?.name || 'Patient',
+          age: req.patient?.blood_group ? `Blood ${req.patient.blood_group}` : 28,
+          condition: req.notes || (req.request_type === 'direct_teleconsultation' ? 'Direct Teleconsultation' : 'Scheduled Visit'),
+          subtitle: `${req.request_type === 'direct_teleconsultation' ? 'Teleconsult' : 'Visit'} · ${req.requested_date} at ${req.requested_time}${req.patient?.blood_group ? ` · ${req.patient.blood_group}` : ''}`,
+        }));
+        setConnectionRequests(formatted);
+      }
+    } catch (err) {
+      console.warn('[Doctor Home] Fetch requests error:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+
+    const channel = supabase
+      .channel('doctor_home_requests')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointment_requests',
+        },
+        () => {
+          fetchRequests();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const handleRespondRequest = async (requestId: string, action: 'accept' | 'reject') => {
+    try {
+      const newStatus = action === 'accept' ? 'accepted' : 'rejected';
+
+      const { error: reqErr } = await supabase
+        .from('appointment_requests')
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq('id', requestId);
+
+      if (reqErr) console.warn('[Doctor Home] Update request error:', reqErr);
+
+      if (action === 'accept') {
+        const matched = connectionRequests.find(r => r.id === requestId);
+        if (matched?.raw) {
+          const reqRecord = matched.raw;
+          let scheduledAt = new Date().toISOString();
+          try {
+            const dPart = reqRecord.requested_date || new Date().toISOString().split('T')[0];
+            const tPart = reqRecord.requested_time || '10:00 AM';
+            scheduledAt = new Date(`${dPart} ${tPart}`).toISOString();
+          } catch (_) {}
+
+          await supabase.from('appointments').insert({
+            appointment_request_id: requestId,
+            doctor_id: reqRecord.doctor_id,
+            patient_id: reqRecord.patient_id,
+            scheduled_at: scheduledAt,
+            status: 'scheduled',
+            mode: reqRecord.request_type?.includes('teleconsultation') ? 'video' : 'in_person',
+            booked_by: 'patient',
+            reason: reqRecord.notes || 'Consultation',
+          });
+        }
+      }
+
+      setConnectionRequests(prev => prev.filter(r => r.id !== requestId));
+      Alert.alert(
+        action === 'accept' ? 'Appointment Approved' : 'Appointment Declined',
+        `Patient request has been ${action === 'accept' ? 'approved and scheduled' : 'declined'}.`
+      );
+    } catch (err) {
+      console.error('[Doctor Home] Respond error:', err);
+    }
+  };
 
   useEffect(() => {
     const transition = Animated.sequence([
@@ -378,20 +474,20 @@ export default function Home() {
         <SafeAreaView style={styles.modalContainer}>
           <ModalHeader title="Connection Requests" onClose={() => setRequestsVisible(false)} />
           <FlatList
-            data={MOCK_CONNECTIONS}
+            data={connectionRequests.length > 0 ? connectionRequests : MOCK_CONNECTIONS}
             keyExtractor={item => item.id}
             contentContainerStyle={styles.modalList}
             renderItem={({ item }) => (
               <View style={styles.listItem}>
                 <View style={styles.listItemInfo}>
                   <Text style={styles.listItemTitle}>{item.name}</Text>
-                  <Text style={styles.listItemSub}>Age: {item.age} · {item.condition}</Text>
+                  <Text style={styles.listItemSub}>{item.subtitle || `Age: ${item.age} · ${item.condition}`}</Text>
                 </View>
                 <View style={styles.actionButtonsRow}>
-                  <Pressable style={[styles.actionBtn, styles.rejectBtn]}>
+                  <Pressable style={[styles.actionBtn, styles.rejectBtn]} onPress={() => handleRespondRequest(item.id, 'reject')}>
                     <Text style={styles.rejectBtnText}>Decline</Text>
                   </Pressable>
-                  <Pressable style={[styles.actionBtn, styles.acceptBtn]}>
+                  <Pressable style={[styles.actionBtn, styles.acceptBtn]} onPress={() => handleRespondRequest(item.id, 'accept')}>
                     <Text style={styles.acceptBtnText}>Connect</Text>
                   </Pressable>
                 </View>
