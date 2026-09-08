@@ -3,6 +3,7 @@ import { useSideMenu } from '@/components/side-menu-context';
 import { useNotifications } from '@/components/notification-context';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Alert,
@@ -19,6 +20,7 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
@@ -28,25 +30,25 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 // ─── Colors ─────────────────────────────────────────────────────────────
 const COLORS = {
   primary: '#0D9488',
-  primaryLight: '#14B8A6',
+  primaryLight: '#2DD4BF',
   primaryDark: '#0F766E',
   primaryBg: '#F0FDFA',
   primaryBorder: '#99F6E4',
-  secondary: '#2563EB',
-  secondaryLight: '#3B82F6',
+  secondary: '#3B82F6',
+  secondaryLight: '#60A5FA',
   accent: '#6366F1',
   background: '#F8FAFC',
   surface: '#FFFFFF',
-  text: '#111827',
-  textSecondary: '#6B7280',
-  textMuted: '#9CA3AF',
-  border: '#E5E7EB',
-  borderLight: '#F3F4F6',
+  text: '#0F172A',
+  textSecondary: '#475569',
+  textMuted: '#94A3B8',
+  border: '#E2E8F0',
+  borderLight: '#F1F5F9',
   userBubble: '#0D9488',
   aiBubble: '#FFFFFF',
-  emergency: '#DC2626',
+  emergency: '#EF4444',
   emergencyBg: '#FEF2F2',
-  success: '#16A34A',
+  success: '#10B981',
   warning: '#F59E0B',
 };
 
@@ -185,14 +187,14 @@ const headerStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)',
+    paddingVertical: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.4)',
+    borderBottomColor: 'rgba(255, 255, 255, 0.6)',
   },
-  info: { flex: 1, marginLeft: 12 },
-  title: { fontSize: 17, fontWeight: '700', color: COLORS.text },
-  subtitle: { fontSize: 12, color: COLORS.textSecondary, marginTop: 1 },
+  info: { flex: 1, marginLeft: 14 },
+  title: { fontSize: 20, fontWeight: '800', color: COLORS.text, letterSpacing: -0.3 },
+  subtitle: { fontSize: 13, color: COLORS.textSecondary, marginTop: 2, fontWeight: '500' },
 });
 
 // ─── Suggestion Chips ───────────────────────────────────────────────────
@@ -200,16 +202,22 @@ const headerStyles = StyleSheet.create({
 function SuggestionChips({ onSelect }: { onSelect: (label: string) => void }) {
   return (
     <View style={chipStyles.wrapper}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={chipStyles.container}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={chipStyles.scrollContainer}
+      >
         {SUGGESTION_CHIPS.map((chip) => (
           <TouchableOpacity
             key={chip.id}
-            style={chipStyles.chip}
+            style={chipStyles.card}
             activeOpacity={0.7}
             onPress={() => onSelect(chip.label)}
           >
-            <Ionicons name={chip.icon} size={16} color={COLORS.primary} />
-            <Text style={chipStyles.chipText}>{chip.label}</Text>
+            <View style={chipStyles.iconContainer}>
+              <Ionicons name={chip.icon} size={22} color={COLORS.primary} />
+            </View>
+            <Text style={chipStyles.cardText} numberOfLines={2}>{chip.label}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -218,25 +226,44 @@ function SuggestionChips({ onSelect }: { onSelect: (label: string) => void }) {
 }
 
 const chipStyles = StyleSheet.create({
-  wrapper: { marginVertical: 12 },
-  container: { paddingHorizontal: 20, gap: 8 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FFFFFF',
+  wrapper: {
+    paddingTop: 90,
+    width: '100%',
+  },
+  scrollContainer: {
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  card: {
+    width: 130,
+    height: 100,
+    backgroundColor: 'rgba(255, 255, 255, 1)',
     borderWidth: 1,
-    borderColor: 'rgba(13, 148, 136, 0.2)',
+    borderColor: 'rgba(255, 255, 255, 1)',
     borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    shadowColor: COLORS.primaryDark,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
+    padding: 14,
+    alignItems: 'flex-start',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
     elevation: 2,
   },
-  chipText: { fontSize: 13, fontWeight: '500', color: COLORS.primaryDark },
+  iconContainer: {
+    width: 30,
+    height: 30,
+    borderRadius: 12,
+    backgroundColor: COLORS.primaryBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  cardText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.text,
+    lineHeight: 20,
+  },
 });
 
 // ─── Empty State ────────────────────────────────────────────────────────
@@ -244,13 +271,7 @@ const chipStyles = StyleSheet.create({
 function EmptyState({ onSelectSuggestion }: { onSelectSuggestion: (text: string) => void }) {
   return (
     <View style={emptyStyles.container}>
-      <View style={emptyStyles.avatarWrapper}>
-        <AIAvatar size={72} animate={true} />
-      </View>
       <Text style={emptyStyles.title}>How can I help you today?</Text>
-      <Text style={emptyStyles.subtitle}>
-        Ask AI Care about your health, reports, medications, or symptoms.
-      </Text>
       <SuggestionChips onSelect={onSelectSuggestion} />
     </View>
   );
@@ -261,30 +282,32 @@ const emptyStyles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 32,
-    paddingBottom: 100,
+    paddingHorizontal: 24,
+    paddingTop: 180,
   },
   avatarWrapper: {
-    marginBottom: 24,
-    shadowColor: COLORS.primary,
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
-    elevation: 8,
+    marginBottom: 32,
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  glow: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: COLORS.primaryLight,
+    opacity: 0.25,
+    transform: [{ scale: 1.2 }],
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 24,
+    fontWeight: '800',
     color: COLORS.text,
     textAlign: 'center',
-    marginBottom: 8,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: 4,
+    marginTop : 40,
+    marginBottom : 20,
+    letterSpacing: -0.5,
   },
 });
 
@@ -340,7 +363,7 @@ function MessageBubble({ message }: { message: Message }) {
       )}
       {isUser ? (
         <LinearGradient
-          colors={['#14B8A6', '#0D9488']}
+          colors={['#2DD4BF', '#0D9488']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={[bubbleStyles.bubble, bubbleStyles.userBubble]}
@@ -367,15 +390,15 @@ const bubbleStyles = StyleSheet.create({
   avatarContainer: { marginRight: 8, marginBottom: 2 },
   bubble: {
     maxWidth: '78%',
-    borderRadius: 18,
+    borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },
   userBubble: {
     borderBottomRightRadius: 4,
-    shadowColor: COLORS.primaryDark,
+    shadowColor: '#0F766E',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 3,
   },
@@ -384,9 +407,9 @@ const bubbleStyles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.8)',
     borderBottomLeftRadius: 4,
-    shadowColor: '#000',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.08,
+    shadowOpacity: 0.06,
     shadowRadius: 16,
     elevation: 2,
   },
@@ -513,6 +536,7 @@ function ChatInputBar({
   onAttachment,
   onMic,
   onEmergency,
+  isKeyboardVisible,
 }: {
   value: string;
   onChangeText: (text: string) => void;
@@ -522,23 +546,24 @@ function ChatInputBar({
   onAttachment: () => void;
   onMic: () => void;
   onEmergency: () => void;
+  isKeyboardVisible?: boolean;
 }) {
   const hasText = value.trim().length > 0;
+  const bottomPadding = isKeyboardVisible ? (Platform.OS === 'ios' ? 12 : 12) : (Platform.OS === 'ios' ? 95 : 85);
 
   return (
-    <View style={inputStyles.outerContainer}>
-      {/* Main Input Bar */}
-      <View style={inputStyles.container}>
+    <View style={[inputStyles.outerContainer, { paddingBottom: bottomPadding }]}>
+      <BlurView intensity={60} tint="light" style={inputStyles.blurContainer}>
         {/* Left Icons */}
         <View style={inputStyles.leftIcons}>
           <TouchableOpacity style={inputStyles.iconButton} onPress={onHistory} activeOpacity={0.6}>
-            <Ionicons name="time-outline" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="time-outline" size={22} color={COLORS.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity style={inputStyles.iconButton} onPress={onCamera} activeOpacity={0.6}>
-            <Ionicons name="camera-outline" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="camera-outline" size={22} color={COLORS.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity style={inputStyles.iconButton} onPress={onAttachment} activeOpacity={0.6}>
-            <Ionicons name="attach-outline" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="attach-outline" size={22} color={COLORS.textSecondary} />
           </TouchableOpacity>
         </View>
 
@@ -556,23 +581,24 @@ function ChatInputBar({
         {/* Right Icons */}
         <View style={inputStyles.rightIcons}>
           <TouchableOpacity style={inputStyles.iconButton} onPress={onMic} activeOpacity={0.6}>
-            <Ionicons name="mic-outline" size={20} color={COLORS.textSecondary} />
+            <Ionicons name="mic-outline" size={22} color={COLORS.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={onSend}
             activeOpacity={0.7}
+            disabled={!hasText}
           >
             <LinearGradient
-              colors={hasText ? ['#14B8A6', '#0D9488'] : [COLORS.borderLight, COLORS.borderLight]}
+              colors={hasText ? ['#2DD4BF', '#0D9488'] : [COLORS.border, COLORS.border]}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={[inputStyles.sendButton, hasText && inputStyles.sendButtonActive]}
             >
-              <Ionicons name="arrow-up" size={22} color={hasText ? '#FFFFFF' : COLORS.textMuted} />
+              <Ionicons name="arrow-up" size={20} color={hasText ? '#FFFFFF' : COLORS.textMuted} />
             </LinearGradient>
           </TouchableOpacity>
         </View>
-      </View>
+      </BlurView>
     </View>
   );
 }
@@ -580,25 +606,25 @@ function ChatInputBar({
 const inputStyles = StyleSheet.create({
   outerContainer: {
     paddingHorizontal: 16,
-    paddingBottom: Platform.OS === 'ios' ? 95 : 85,
     paddingTop: 8,
     backgroundColor: 'transparent',
   },
-  container: {
+  blurContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.75)',
+    borderRadius: 32,
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 1)',
     paddingHorizontal: 8,
-    paddingVertical: 6,
-    minHeight: 56,
-    shadowColor: '#000',
+    paddingVertical: 8,
+    minHeight: 60,
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.08,
     shadowRadius: 24,
-    elevation: 5,
+    elevation: 8,
+    overflow: 'hidden',
   },
   leftIcons: {
     flexDirection: 'row',
@@ -606,34 +632,41 @@ const inputStyles = StyleSheet.create({
     paddingBottom: 4,
   },
   iconButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
   },
   textInput: {
     flex: 1,
-    fontSize: 15,
+    fontSize: 16,
     color: COLORS.text,
     paddingHorizontal: 8,
-    maxHeight: 100,
-    paddingVertical: 6,
+    maxHeight: 120,
+    paddingVertical: 8,
   },
   rightIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: 4,
+    paddingBottom: 2,
   },
   sendButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: COLORS.borderLight,
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 4,
   },
   sendButtonActive: {
+    shadowColor: COLORS.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
   },
 });
 
@@ -643,10 +676,12 @@ function PastChatsSheet({
   visible,
   onClose,
   onSelectConversation,
+  onNewChat,
 }: {
   visible: boolean;
   onClose: () => void;
   onSelectConversation: (id: string) => void;
+  onNewChat: () => void;
 }) {
   const [searchQuery, setSearchQuery] = useState('');
   const slideAnim = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -722,7 +757,7 @@ function PastChatsSheet({
             </View>
 
             {/* New Chat Button */}
-            <TouchableOpacity style={historyStyles.newChatButton} activeOpacity={0.7}>
+            <TouchableOpacity style={historyStyles.newChatButton} activeOpacity={0.7} onPress={onNewChat}>
               <Ionicons name="add-circle-outline" size={20} color={COLORS.primary} />
               <Text style={historyStyles.newChatText}>New chat</Text>
             </TouchableOpacity>
@@ -830,6 +865,65 @@ const historyStyles = StyleSheet.create({
   moreButton: { padding: 4 },
 });
 
+const GROQ_API_KEY = "GROQ_KEY_REMOVED";
+
+async function fetchGroqResponse(chatMessages: Message[]): Promise<string> {
+  const formattedMessages = chatMessages.map((msg) => ({
+    role: msg.role === 'ai' ? 'assistant' : 'user',
+    content: msg.text,
+  }));
+
+  const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${GROQ_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'openai/gpt-oss-20b',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are AI Care, a professional, empathetic, and knowledgeable AI health assistant. Respond in plain, clear text without any markdown formatting like asterisks, hashtags, or bullet symbols. Use natural paragraphs and simple sentences instead. Always remind users to consult a real doctor for serious issues.',
+        },
+        ...formattedMessages,
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Groq API error: ${errorText}`);
+  }
+
+  const data = await response.json();
+  return data.choices[0].message.content as string;
+}
+
+// Typewriter: reveals text word by word to simulate streaming
+function typewriterEffect(
+  fullText: string,
+  messageId: string,
+  setMessages: React.Dispatch<React.SetStateAction<Message[]>>,
+  scrollToBottom: () => void,
+  onDone: () => void
+) {
+  const words = fullText.split(' ');
+  let index = 0;
+  const interval = setInterval(() => {
+    index++;
+    const partial = words.slice(0, index).join(' ');
+    setMessages((prev) =>
+      prev.map((m) => (m.id === messageId ? { ...m, text: partial } : m))
+    );
+    scrollToBottom();
+    if (index >= words.length) {
+      clearInterval(interval);
+      onDone();
+    }
+  }, 30);
+}
+
 // ─── Main AI Care Tab ───────────────────────────────────────────────────
 
 export default function AICare() {
@@ -840,9 +934,19 @@ export default function AICare() {
   const [inputText, setInputText] = useState('');
   const [showHistory, setShowHistory] = useState(false);
   const [isTyping, setIsTyping] = useState(false);
+  const [isKeyboardVisible, setKeyboardVisible] = useState(false);
   const flatListRef = useRef<FlatList>(null);
 
   const hasMessages = messages.length > 0;
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setKeyboardVisible(true));
+    const hideSub = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setKeyboardVisible(false));
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
@@ -850,7 +954,7 @@ export default function AICare() {
     }, 100);
   }, []);
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const text = inputText.trim();
     if (!text) return;
 
@@ -861,52 +965,76 @@ export default function AICare() {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInputText('');
     scrollToBottom();
-
-    // Simulate AI response
     setIsTyping(true);
     scrollToBottom();
-    setTimeout(() => {
-      const aiMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'ai',
-        text: 'Thank you for sharing that information. Based on what you have described, here are some observations:\n\n**Assessment:**\n• Your symptoms suggest a common condition that can be managed\n• No immediate red flags detected\n\n**Recommendations:**\n• Monitor your symptoms over the next 24-48 hours\n• Stay well hydrated and get adequate rest\n• Over-the-counter relief may help with discomfort\n\n**Next Steps:**\nIf symptoms persist or worsen, please consult with your healthcare provider for a personalized evaluation.\n\nWould you like more specific information about any aspect of your concern?',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      };
+
+    const aiId = (Date.now() + 1).toString();
+    const aiTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    try {
+      const fullText = await fetchGroqResponse(updatedMessages);
       setIsTyping(false);
-      setMessages((prev) => [...prev, aiMessage]);
-      scrollToBottom();
-    }, 2000);
-  }, [inputText, scrollToBottom]);
+      // Seed the message with an empty string, typewriter fills it in
+      setMessages((prev) => [...prev, { id: aiId, role: 'ai', text: '', timestamp: aiTimestamp }]);
+      typewriterEffect(fullText, aiId, setMessages, scrollToBottom, () => {});
+    } catch (error) {
+      console.error(error);
+      setIsTyping(false);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: aiId,
+          role: 'ai',
+          text: 'Sorry, I am having trouble connecting to the AI server right now. Please try again later.',
+          timestamp: aiTimestamp,
+        },
+      ]);
+    }
+  }, [inputText, messages, scrollToBottom]);
 
   const handleSelectSuggestion = useCallback((text: string) => {
     setInputText(text);
-    setTimeout(() => {
+    setTimeout(async () => {
       const userMessage: Message = {
         id: Date.now().toString(),
         role: 'user',
         text,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
-      setMessages((prev) => [...prev, userMessage]);
+
+      const updatedMessages = [...messages, userMessage];
+      setMessages(updatedMessages);
+      scrollToBottom();
+      setIsTyping(true);
       scrollToBottom();
 
-      setIsTyping(true);
-      setTimeout(() => {
-        const aiMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'ai',
-          text: `Regarding "${text}"...\n\nI would be happy to help you with that. Here is what I can tell you:\n\n**Key Points:**\n• This is a common health concern that many patients ask about\n• There are several evidence-based approaches to address this\n• Your individual situation may require personalized guidance\n\n**General Guidance:**\n• Start with lifestyle modifications where applicable\n• Keep track of any changes in your symptoms\n• Consider scheduling a follow-up with your doctor\n\n**Important Note:** For a thorough evaluation and personalized treatment plan, please consult with your healthcare professional.\n\nIs there anything specific you would like me to elaborate on?`,
-          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        };
+      const aiId = (Date.now() + 1).toString();
+      const aiTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      try {
+        const fullText = await fetchGroqResponse(updatedMessages);
         setIsTyping(false);
-        setMessages((prev) => [...prev, aiMessage]);
-        scrollToBottom();
-      }, 2000);
+        setMessages((prev) => [...prev, { id: aiId, role: 'ai', text: '', timestamp: aiTimestamp }]);
+        typewriterEffect(fullText, aiId, setMessages, scrollToBottom, () => {});
+      } catch (error) {
+        console.error(error);
+        setIsTyping(false);
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: aiId,
+            role: 'ai',
+            text: 'Sorry, I am having trouble connecting to the AI server right now. Please try again later.',
+            timestamp: aiTimestamp,
+          },
+        ]);
+      }
     }, 50);
-  }, [scrollToBottom]);
+  }, [messages, scrollToBottom]);
 
   const handleSelectConversation = useCallback((id: string) => {
     setShowHistory(false);
@@ -914,6 +1042,13 @@ export default function AICare() {
     setMessages(MOCK_MESSAGES);
     setTimeout(scrollToBottom, 100);
   }, [scrollToBottom]);
+
+  const handleNewChat = useCallback(() => {
+    setShowHistory(false);
+    setMessages([]);
+    setInputText('');
+    setIsTyping(false);
+  }, []);
 
   const handleCamera = async () => {
     try {
@@ -966,10 +1101,19 @@ export default function AICare() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-      {/* Light gradient backdrop */}
+      {/* Wow-factor Premium Glassmorphism Background */}
       <View style={StyleSheet.absoluteFillObject}>
-        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: '#F0FAFA' }]} />
-        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 180, backgroundColor: 'rgba(0,181,173,0.10)', borderBottomLeftRadius: 40, borderBottomRightRadius: 40 }} />
+        <LinearGradient
+          colors={['#F8FAFC', '#E0F2FE', '#F0FDFA']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={StyleSheet.absoluteFillObject}
+        />
+        {/* Animated-like Glowing Orbs */}
+        <View style={{ position: 'absolute', top: -100, right: -50, width: 250, height: 250, borderRadius: 125, backgroundColor: '#2DD4BF', opacity: 0.15 }} />
+        <View style={{ position: 'absolute', top: 300, left: -100, width: 300, height: 300, borderRadius: 150, backgroundColor: '#3B82F6', opacity: 0.1 }} />
+        <View style={{ position: 'absolute', bottom: -50, right: -50, width: 200, height: 200, borderRadius: 100, backgroundColor: '#818CF8', opacity: 0.1 }} />
+        <BlurView intensity={100} tint="light" style={StyleSheet.absoluteFillObject} />
       </View>
 
       {/* App Header */}
@@ -980,7 +1124,7 @@ export default function AICare() {
         onPressMenu={openMenu}
         onPressNotification={openNotifications}
         style={{ backgroundColor: 'transparent' }}
-        buttonBackgroundColor="rgba(0,181,173,0.12)"
+        buttonBackgroundColor="rgba(255, 255, 255, 0.4)"
       />
 
       {/* AI Care Sub-Header */}
@@ -989,8 +1133,8 @@ export default function AICare() {
       {/* Chat Area */}
       <KeyboardAvoidingView
         style={styles.chatArea}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={90}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
         {!hasMessages ? (
           <EmptyState onSelectSuggestion={handleSelectSuggestion} />
@@ -1020,6 +1164,7 @@ export default function AICare() {
           onAttachment={() => {}}
           onMic={handleMic}
           onEmergency={() => {}}
+          isKeyboardVisible={isKeyboardVisible}
         />
       </KeyboardAvoidingView>
 
@@ -1028,6 +1173,7 @@ export default function AICare() {
         visible={showHistory}
         onClose={() => setShowHistory(false)}
         onSelectConversation={handleSelectConversation}
+        onNewChat={handleNewChat}
       />
     </SafeAreaView>
   );
@@ -1036,7 +1182,7 @@ export default function AICare() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#F0FAFA',
+    backgroundColor: 'transparent',
   },
   chatArea: {
     flex: 1,

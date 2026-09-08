@@ -412,7 +412,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 180,
-    backgroundColor: 'rgba(0,181,173,0.08)',
+    backgroundColor: 'rgba(174, 235, 232, 0.08)',
   },
   header: {
     backgroundColor: 'transparent',
@@ -433,7 +433,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 16,
     paddingTop: 14,
-    paddingBottom: 40,
+    paddingBottom: 80,
   },
   locationBar: {
     flexDirection: 'row',
