@@ -123,9 +123,6 @@ export default function SignUpScreen() {
 
       if (attempt.status === 'complete') {
         await setActive({ session: attempt.createdSessionId });
-<<<<<<< HEAD
-        router.replace('/(tab3)/home3' as any);
-=======
 
         // Save user fields (phone, dob, gender, preferredLanguage) to Supabase `users` table
         await getOrCreateDbUserId(clerk.user || user, {
@@ -137,7 +134,6 @@ export default function SignUpScreen() {
         });
 
         router.replace('/role');
->>>>>>> 8f1ace26f82b9c1da1e8b9acef39b0bc927fe2a2
       } else {
         Alert.alert('Incomplete', 'Verification did not finish.');
       }
@@ -171,9 +167,6 @@ export default function SignUpScreen() {
 
       if (createdSessionId && setActiveSSO) {
         await setActiveSSO({ session: createdSessionId });
-<<<<<<< HEAD
-        router.replace('/(tab3)/home3' as any);
-=======
         const freshUser =
           clerk.client?.sessions?.find((s: any) => s.id === createdSessionId)?.user ||
           clerk.user ||
@@ -196,7 +189,6 @@ export default function SignUpScreen() {
         Alert.alert('Incomplete Profile', 'Please complete the registration fields below.');
       } else if (ssoSignIn?.status && ssoSignIn.status !== 'complete') {
         Alert.alert('Sign Up Status', `Status: ${ssoSignIn.status}`);
->>>>>>> 8f1ace26f82b9c1da1e8b9acef39b0bc927fe2a2
       }
     } catch (err: any) {
       Alert.alert('Google sign up failed', err.errors?.[0]?.message ?? 'Try again');
