@@ -43,10 +43,6 @@ export default function PrescriptionHistoryScreen() {
     });
   }, [prescriptions, searchQuery]);
 
-  const totalRevenue = useMemo(() => {
-    return prescriptions.reduce((acc, curr) => acc + curr.totalAmount, 0);
-  }, [prescriptions]);
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <AppHeader
@@ -84,40 +80,12 @@ export default function PrescriptionHistoryScreen() {
           )}
         </View>
 
-        {/* Analytics Highlights */}
-        <View style={styles.analyticsGrid}>
-          <View style={styles.analyticsCard}>
-            <View style={[styles.iconRound, { backgroundColor: '#EFF6FF' }]}>
-              <Ionicons name="cash" size={18} color="#1D4ED8" />
-            </View>
-            <Text style={styles.analyticsVal}>₹{totalRevenue.toFixed(0)}</Text>
-            <Text style={styles.analyticsLabel}>Total Dispensed</Text>
-          </View>
-
-          <View style={styles.analyticsCard}>
-            <View style={[styles.iconRound, { backgroundColor: '#DCFCE7' }]}>
-              <Ionicons name="checkmark-done" size={18} color="#15803D" />
-            </View>
-            <Text style={styles.analyticsVal}>{prescriptions.filter(p => p.status === 'Completed').length}</Text>
-            <Text style={styles.analyticsLabel}>Fulfilled Orders</Text>
-          </View>
-
-          <View style={styles.analyticsCard}>
-            <View style={[styles.iconRound, { backgroundColor: '#FEF3C7' }]}>
-              <Ionicons name="speedometer" size={18} color="#B45309" />
-            </View>
-            <Text style={styles.analyticsVal}>14m</Text>
-            <Text style={styles.analyticsLabel}>Avg Dispense Time</Text>
-          </View>
-        </View>
-
         {/* History Feed List */}
         <Text style={styles.feedTitle}>Dispensation Archive</Text>
         {historyList.map((rx) => (
           <View key={rx.id} style={styles.historyCard}>
             <View style={styles.historyCardHeader}>
               <View>
-                <Text style={styles.rxNumberText}>{rx.rxNumber}</Text>
                 <Text style={styles.rxDateText}>{rx.date} • {rx.time}</Text>
               </View>
               <View style={styles.statusTag}>

@@ -69,23 +69,6 @@ export default function PrescriptionManagementScreen() {
     setSmsText('');
   };
 
-  const getStatusColor = (status: PrescriptionStatus) => {
-    switch (status) {
-      case 'Pending':
-        return { bg: '#FEF3C7', text: '#B45309', border: '#FDE68A' };
-      case 'Accepted':
-        return { bg: '#DBEAFE', text: '#1D4ED8', border: '#BFDBFE' };
-      case 'Processing':
-        return { bg: '#E0E7FF', text: '#4338CA', border: '#C7D2FE' };
-      case 'Ready':
-        return { bg: '#DCFCE7', text: '#15803D', border: '#86EFAC' };
-      case 'Completed':
-        return { bg: '#F1F5F9', text: '#475569', border: '#CBD5E1' };
-      case 'Rejected':
-        return { bg: '#FEE2E2', text: '#DC2626', border: '#FECDD3' };
-    }
-  };
-
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <AppHeader
@@ -168,33 +151,12 @@ export default function PrescriptionManagementScreen() {
           </View>
         ) : (
           filteredPrescriptions.map((rx) => {
-            const statusTheme = getStatusColor(rx.status);
-
             return (
               <View key={rx.id} style={styles.rxCard}>
-                {/* Header Row: Rx Number, Date/Time, Status Badge */}
+                {/* Header Row: Date/Time */}
                 <View style={styles.cardHeader}>
                   <View>
-                    <View style={styles.rxIdRow}>
-                      <Text style={styles.rxId}>{rx.rxNumber}</Text>
-                      {rx.priority === 'Urgent' && (
-                        <View style={styles.urgentBadge}>
-                          <Text style={styles.urgentBadgeText}>URGENT</Text>
-                        </View>
-                      )}
-                    </View>
                     <Text style={styles.rxDateTime}>{rx.date} at {rx.time}</Text>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.statusPill,
-                      { backgroundColor: statusTheme.bg, borderColor: statusTheme.border },
-                    ]}
-                  >
-                    <Text style={[styles.statusPillText, { color: statusTheme.text }]}>
-                      {rx.status}
-                    </Text>
                   </View>
                 </View>
 
@@ -245,19 +207,10 @@ export default function PrescriptionManagementScreen() {
 
                   <View style={styles.photoActionRow}>
                     <TouchableOpacity
-                      style={styles.photoBtn}
-                      onPress={() => setShowPhotoModal(rx)}
-                      activeOpacity={0.8}
-                    >
-                      <Ionicons name="image-outline" size={16} color="#1A66E8" />
-                      <Text style={styles.photoBtnText}>View Rx Image</Text>
-                    </TouchableOpacity>
-
-                    <TouchableOpacity
                       style={styles.smsBtn}
                       onPress={() => {
                         setSmsModalRx(rx);
-                        setSmsText(`Hello ${rx.patientName}, your prescription #${rx.rxNumber} is ready for collection at MediQuick Dispensary.`);
+                        setSmsText(`Hello ${rx.patientName}, your prescription is ready for collection at MediQuick Dispensary.`);
                       }}
                       activeOpacity={0.8}
                     >
@@ -267,66 +220,31 @@ export default function PrescriptionManagementScreen() {
                   </View>
                 </View>
 
-                {/* Workflow Progress Action Buttons */}
+                {/* Workflow Action Buttons: Accept & Reject */}
                 <View style={styles.workflowActionRow}>
-                  {rx.status === 'Pending' && (
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
                     <TouchableOpacity
-                      style={[styles.workflowBtn, { backgroundColor: '#1A66E8' }]}
+                      style={[styles.workflowBtn, { backgroundColor: '#1A66E8', flex: 1 }]}
                       onPress={() => {
                         updatePrescriptionStatus(rx.id, 'Accepted');
-                        Alert.alert('Order Accepted', `Prescription #${rx.rxNumber} moved to Accepted.`);
+                        Alert.alert('Order Accepted', `Prescription moved to Accepted.`);
                       }}
                     >
                       <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
                       <Text style={styles.workflowBtnText}>Accept Order</Text>
                     </TouchableOpacity>
-                  )}
 
-                  {rx.status === 'Accepted' && (
                     <TouchableOpacity
-                      style={[styles.workflowBtn, { backgroundColor: '#4F46E5' }]}
+                      style={[styles.workflowBtn, { backgroundColor: '#DC2626', flex: 1 }]}
                       onPress={() => {
-                        updatePrescriptionStatus(rx.id, 'Processing');
-                        Alert.alert('Dispensing Started', `Packaging medicines for #${rx.rxNumber}.`);
+                        updatePrescriptionStatus(rx.id, 'Rejected');
+                        Alert.alert('Order Rejected', `Prescription has been rejected.`);
                       }}
                     >
-                      <Ionicons name="cube" size={16} color="#FFFFFF" />
-                      <Text style={styles.workflowBtnText}>Start Packaging</Text>
+                      <Ionicons name="close-circle" size={16} color="#FFFFFF" />
+                      <Text style={styles.workflowBtnText}>Reject Order</Text>
                     </TouchableOpacity>
-                  )}
-
-                  {rx.status === 'Processing' && (
-                    <TouchableOpacity
-                      style={[styles.workflowBtn, { backgroundColor: '#059669' }]}
-                      onPress={() => {
-                        updatePrescriptionStatus(rx.id, 'Ready');
-                        Alert.alert('Ready for Pickup', `Order #${rx.rxNumber} is packed and ready.`);
-                      }}
-                    >
-                      <Ionicons name="bag-check" size={16} color="#FFFFFF" />
-                      <Text style={styles.workflowBtnText}>Mark Ready for Pickup</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {rx.status === 'Ready' && (
-                    <TouchableOpacity
-                      style={[styles.workflowBtn, { backgroundColor: '#1E293B' }]}
-                      onPress={() => {
-                        updatePrescriptionStatus(rx.id, 'Completed');
-                        Alert.alert('Dispensed Successfully', `Order #${rx.rxNumber} marked as Completed.`);
-                      }}
-                    >
-                      <Ionicons name="checkmark-done" size={16} color="#FFFFFF" />
-                      <Text style={styles.workflowBtnText}>Complete & Hand Over</Text>
-                    </TouchableOpacity>
-                  )}
-
-                  {rx.status === 'Completed' && (
-                    <View style={styles.completedBanner}>
-                      <Ionicons name="checkmark-done-circle" size={18} color="#15803D" />
-                      <Text style={styles.completedText}>Prescription Dispensed & Closed</Text>
-                    </View>
-                  )}
+                  </View>
                 </View>
               </View>
             );
