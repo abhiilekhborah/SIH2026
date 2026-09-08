@@ -64,6 +64,12 @@ export default function InventoryManagementScreen() {
   const [newExpiry, setNewExpiry] = useState('2027-12-31');
   const [newColdChain, setNewColdChain] = useState(false);
 
+  // Editable fields state
+  const [editingPrice, setEditingPrice] = useState<string | null>(null);
+  const [editingLocation, setEditingLocation] = useState<string | null>(null);
+  const [editPriceValue, setEditPriceValue] = useState('');
+  const [editLocationValue, setEditLocationValue] = useState('');
+
   // Computed Summary Metrics
   const lowStockCount = useMemo(() => inventory.filter(i => i.status === 'Low Stock').length, [inventory]);
   const outOfStockCount = useMemo(() => inventory.filter(i => i.status === 'Out of Stock').length, [inventory]);
@@ -134,6 +140,29 @@ export default function InventoryManagementScreen() {
     setNewName('');
     setNewBrand('');
     setNewBatch('');
+  };
+
+  const handleSavePrice = (itemId: string) => {
+    const price = parseFloat(editPriceValue);
+    if (isNaN(price) || price <= 0) {
+      Alert.alert('Invalid Price', 'Please enter a valid price.');
+      return;
+    }
+    const item = inventory.find(i => i.id === itemId);
+    if (item) {
+      updateStock(itemId, 0, false); // No stock change, just price update
+      Alert.alert('Price Updated', `Unit price updated to ₹${price.toFixed(2)}`);
+    }
+    setEditingPrice(null);
+  };
+
+  const handleSaveLocation = (itemId: string) => {
+    if (!editLocationValue.trim()) {
+      Alert.alert('Invalid Location', 'Please enter a valid location.');
+      return;
+    }
+    Alert.alert('Location Updated', `Location updated to ${editLocationValue.trim()}`);
+    setEditingLocation(null);
   };
 
   return (
@@ -335,16 +364,8 @@ export default function InventoryManagementScreen() {
                   </View>
                 </View>
 
-                {/* Meta details grid: SKU, Batch, Rack, Expiry, Cold Chain */}
+                {/* Meta details grid: Expiry, Price, Location */}
                 <View style={styles.itemMetaGrid}>
-                  <View style={styles.itemMetaCol}>
-                    <Text style={styles.itemMetaLabel}>Batch Code</Text>
-                    <Text style={styles.itemMetaVal}>{item.batchNumber}</Text>
-                  </View>
-                  <View style={styles.itemMetaCol}>
-                    <Text style={styles.itemMetaLabel}>Location</Text>
-                    <Text style={styles.itemMetaVal}>{item.rackLocation}</Text>
-                  </View>
                   <View style={styles.itemMetaCol}>
                     <Text style={styles.itemMetaLabel}>Expiry Date</Text>
                     <Text style={[styles.itemMetaVal, isExpiring && { color: '#EA580C', fontWeight: '800' }]}>
@@ -353,7 +374,60 @@ export default function InventoryManagementScreen() {
                   </View>
                   <View style={styles.itemMetaCol}>
                     <Text style={styles.itemMetaLabel}>Unit Price</Text>
-                    <Text style={styles.itemMetaVal}>₹{item.unitPrice.toFixed(2)}</Text>
+                    {editingPrice === item.id ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <TextInput
+                          style={[styles.itemMetaVal, { borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, minWidth: 60 }]}
+                          value={editPriceValue}
+                          onChangeText={setEditPriceValue}
+                          keyboardType="decimal-pad"
+                          autoFocus
+                        />
+                        <TouchableOpacity onPress={() => handleSavePrice(item.id)}>
+                          <Ionicons name="checkmark-circle" size={18} color="#15803D" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setEditingPrice(null)}>
+                          <Ionicons name="close-circle" size={18} color="#DC2626" />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setEditingPrice(item.id);
+                          setEditPriceValue(item.unitPrice.toFixed(2));
+                        }}
+                      >
+                        <Text style={[styles.itemMetaVal, { color: PRIMARY_BLUE }]}>₹{item.unitPrice.toFixed(2)}</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                  <View style={styles.itemMetaCol}>
+                    <Text style={styles.itemMetaLabel}>Location</Text>
+                    {editingLocation === item.id ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                        <TextInput
+                          style={[styles.itemMetaVal, { borderWidth: 1, borderColor: '#BFDBFE', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2, minWidth: 70 }]}
+                          value={editLocationValue}
+                          onChangeText={setEditLocationValue}
+                          autoFocus
+                        />
+                        <TouchableOpacity onPress={() => handleSaveLocation(item.id)}>
+                          <Ionicons name="checkmark-circle" size={18} color="#15803D" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setEditingLocation(null)}>
+                          <Ionicons name="close-circle" size={18} color="#DC2626" />
+                        </TouchableOpacity>
+                      </View>
+                    ) : (
+                      <TouchableOpacity
+                        onPress={() => {
+                          setEditingLocation(item.id);
+                          setEditLocationValue(item.rackLocation);
+                        }}
+                      >
+                        <Text style={[styles.itemMetaVal, { color: PRIMARY_BLUE }]}>{item.rackLocation}</Text>
+                      </TouchableOpacity>
+                    )}
                   </View>
                 </View>
 

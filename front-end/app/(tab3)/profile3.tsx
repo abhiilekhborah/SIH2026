@@ -107,27 +107,6 @@ export default function PharmacistProfileScreen() {
           </View>
         </View>
 
-        {/* Operational Statistics */}
-        <Text style={styles.sectionHeader}>Pharmacy Operations Stats</Text>
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <Text style={styles.statNum}>1,420+</Text>
-            <Text style={styles.statLabel}>Prescriptions Dispensed</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statNum, { color: '#15803D' }]}>99.4%</Text>
-            <Text style={styles.statLabel}>Stock Availability Rate</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statNum, { color: PRIMARY_BLUE }]}>₹3.4L</Text>
-            <Text style={styles.statLabel}>Monthly Drug Volume</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={[styles.statNum, { color: '#7E22CE' }]}>12m</Text>
-            <Text style={styles.statLabel}>Avg Verification Speed</Text>
-          </View>
-        </View>
-
         {/* Store Automation Preferences & Controls */}
         <Text style={styles.sectionHeader}>Dispensary Settings & Automations</Text>
         <View style={styles.settingsCard}>
