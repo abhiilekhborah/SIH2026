@@ -8,6 +8,8 @@ import morgan from "morgan";
 import userAuthRoutes from "./routes/userAuthRoutes.js";
 import doctorRoutes from  "./routes/doctorRoutes.js";
 import patientRoutes from "./routes/patientRoutes.js";
+import pharmacyRoutes from "./routes/pharmacyRoutes.js"
+import pharmacistRoutes from "./routes/pharrmacistRoutes.js"
 import appointmentRoutes from "./routes/appointmentRoutes.js";
 import { errorHandler } from "./middlewares/errorHandler.js";
 import { clerkMiddleware } from "@clerk/express";
@@ -32,7 +34,8 @@ app.use("/api/v1/user", userAuthRoutes);
 app.use("/api/v1/user/doctor", doctorRoutes);
 app.use("/api/v1/user/patient", patientRoutes);
 app.use("/api/v1/appointments",appointmentRoutes);
-
+app.use("/api/v1/pharmacies",pharmacyRoutes)
+app.use("/api/v1/pharmacist",pharmacistRoutes)
 // Add patient routes here when you create them
 // import patientRoutes from "./routes/patientRoutes.js";
 // app.use("/api/v1/patient", patientRoutes);
