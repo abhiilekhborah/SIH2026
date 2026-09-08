@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { useSSO } from '@clerk/expo';
-=======
 import { useClerk, useSSO, useUser } from '@clerk/expo';
->>>>>>> 8f1ace26f82b9c1da1e8b9acef39b0bc927fe2a2
 import { useSignIn } from '@clerk/expo/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import * as AuthSession from 'expo-auth-session';
@@ -43,11 +39,8 @@ const DARK_BLUE = '#123E9E'; // Sign in button
 const BORDER = '#E5E7EB';
 
 export default function LoginScreen() {
-<<<<<<< HEAD
-=======
   useWarmUpBrowser();
 
->>>>>>> 8f1ace26f82b9c1da1e8b9acef39b0bc927fe2a2
   const { isLoaded, signIn, setActive } = useSignIn();
   const { startSSOFlow } = useSSO();
   const { user } = useUser();
@@ -110,10 +103,6 @@ export default function LoginScreen() {
 
       if (createdSessionId && setActiveSSO) {
         // Google gave us a finished session, so log the user in.
-<<<<<<< HEAD
-        await setActive({ session: createdSessionId });
-        router.replace('/(tab3)/home3' as any);
-=======
         await setActiveSSO({ session: createdSessionId });
         const freshUser =
           clerk.client?.sessions?.find((s: any) => s.id === createdSessionId)?.user ||
@@ -128,7 +117,6 @@ export default function LoginScreen() {
         router.push('/signup');
       } else if (ssoSignIn?.status && ssoSignIn.status !== 'complete') {
         Alert.alert('Sign in Incomplete', `Sign in status: ${ssoSignIn.status}`);
->>>>>>> 8f1ace26f82b9c1da1e8b9acef39b0bc927fe2a2
       }
     } catch (err: any) {
       Alert.alert('Google sign in failed', err.errors?.[0]?.message ?? 'Try again');

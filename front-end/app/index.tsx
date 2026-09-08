@@ -25,12 +25,8 @@ export default function GetStartedScreen() {
 
   // Already signed in: redirect based on saved role.
   if (isSignedIn) {
-<<<<<<< HEAD
-    return <Redirect href="/(tab3)/home3" />;
-=======
     const destination = getRoleDestination(user?.unsafeMetadata?.role);
     return <Redirect href={destination} />;
->>>>>>> 8f1ace26f82b9c1da1e8b9acef39b0bc927fe2a2
   }
 
   function handleGetStarted() {
