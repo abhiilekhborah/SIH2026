@@ -1,13 +1,18 @@
+<<<<<<< HEAD
 import { useSSO } from '@clerk/expo';
+=======
+import { useClerk, useSSO, useUser } from '@clerk/expo';
+>>>>>>> 8f1ace26f82b9c1da1e8b9acef39b0bc927fe2a2
 import { useSignIn } from '@clerk/expo/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import * as AuthSession from 'expo-auth-session';
 import { Image } from 'expo-image';
 import { Link, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,16 +22,36 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { resolveUserRoleDestination } from '@/lib/auth-helpers';
+
 // Closes the browser popup once Google sends the user back to the app.
 WebBrowser.maybeCompleteAuthSession();
+
+// Warm up the browser on Android to prevent Custom Tabs from auto-closing
+function useWarmUpBrowser() {
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    void WebBrowser.warmUpAsync();
+    return () => {
+      void WebBrowser.coolDownAsync();
+    };
+  }, []);
+}
 
 const BLUE = '#1A66E8'; // logo + links
 const DARK_BLUE = '#123E9E'; // Sign in button
 const BORDER = '#E5E7EB';
 
 export default function LoginScreen() {
+<<<<<<< HEAD
+=======
+  useWarmUpBrowser();
+
+>>>>>>> 8f1ace26f82b9c1da1e8b9acef39b0bc927fe2a2
   const { isLoaded, signIn, setActive } = useSignIn();
   const { startSSOFlow } = useSSO();
+  const { user } = useUser();
+  const clerk = useClerk();
   const router = useRouter();
 
   const [email, setEmail] = useState('');
@@ -49,7 +74,8 @@ export default function LoginScreen() {
       if (attempt.status === 'complete') {
         // The password was right, so setActive is what logs the user in.
         await setActive({ session: attempt.createdSessionId });
-        router.replace('/(tab3)/home3' as any);
+        const targetRoute = await resolveUserRoleDestination(clerk.user || user);
+        router.replace(targetRoute);
       } else {
         // Clerk wants one more step from this account (2FA, password reset, ...).
         Alert.alert('Incomplete', 'Sign in did not finish.');
@@ -66,17 +92,44 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      const { createdSessionId, setActive } = await startSSOFlow({
-        strategy: 'oauth_google',
-        redirectUrl: AuthSession.makeRedirectUri(),
+      const redirectUrl = AuthSession.makeRedirectUri({
+        scheme: 'mediquick',
+        path: 'sso-callback',
       });
 
-      if (createdSessionId && setActive) {
+      const {
+        createdSessionId,
+        setActive: setActiveSSO,
+        signIn: ssoSignIn,
+        signUp: ssoSignUp,
+        authSessionResult,
+      } = await startSSOFlow({
+        strategy: 'oauth_google',
+        redirectUrl,
+      });
+
+      if (createdSessionId && setActiveSSO) {
         // Google gave us a finished session, so log the user in.
+<<<<<<< HEAD
         await setActive({ session: createdSessionId });
         router.replace('/(tab3)/home3' as any);
+=======
+        await setActiveSSO({ session: createdSessionId });
+        const freshUser =
+          clerk.client?.sessions?.find((s: any) => s.id === createdSessionId)?.user ||
+          clerk.user ||
+          user;
+        const targetRoute = await resolveUserRoleDestination(freshUser);
+        router.replace(targetRoute);
+      } else if (authSessionResult?.type === 'cancel' || authSessionResult?.type === 'dismiss') {
+        // User closed or dismissed the browser window intentionally
+      } else if (ssoSignUp?.status === 'missing_requirements') {
+        Alert.alert('Incomplete Profile', 'Please enter your account details to complete registration.');
+        router.push('/signup');
+      } else if (ssoSignIn?.status && ssoSignIn.status !== 'complete') {
+        Alert.alert('Sign in Incomplete', `Sign in status: ${ssoSignIn.status}`);
+>>>>>>> 8f1ace26f82b9c1da1e8b9acef39b0bc927fe2a2
       }
-      // If there is no createdSessionId the user closed the popup, so do nothing.
     } catch (err: any) {
       Alert.alert('Google sign in failed', err.errors?.[0]?.message ?? 'Try again');
     } finally {

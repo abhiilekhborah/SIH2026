@@ -62,6 +62,8 @@ export function FormField({
   );
 }
 
+export default FormField;
+
 const styles = StyleSheet.create({
   field: {
     marginTop: 18,

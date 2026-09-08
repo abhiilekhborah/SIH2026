@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import { useUser } from "@clerk/expo";
 import { requestConsultationToken } from "@/lib/consultation";
 
@@ -18,8 +18,17 @@ const BLUE = "#1A66E8";
 
 export default function DoctorConsultationIndex() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ appointmentId?: string; consultationId?: string }>();
   const { user } = useUser();
-  const [consultationId, setConsultationId] = useState("");
+  const [consultationId, setConsultationId] = useState(
+    params.consultationId || params.appointmentId || ""
+  );
+
+  React.useEffect(() => {
+    if (params.consultationId || params.appointmentId) {
+      setConsultationId(params.consultationId || params.appointmentId || "");
+    }
+  }, [params.consultationId, params.appointmentId]);
   const [loading, setLoading] = useState(false);
 
   const handleJoin = async () => {
@@ -63,7 +72,7 @@ export default function DoctorConsultationIndex() {
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
+        <TouchableOpacity onPress={() => router.canGoBack() ? router.back() : router.replace('/(tabs2)/home' as any)} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={24} color="#0F172A" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Teleconsultation</Text>

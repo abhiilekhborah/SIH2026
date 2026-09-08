@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Switch } from 'react-native';
+import React, { useState, useCallback } from 'react';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Switch, Alert, Linking, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
@@ -37,6 +37,10 @@ export default function SettingsScreen() {
   const [biometric, setBio]   = useState(false);
   const [darkMode, setDark]   = useState(false);
 
+  const handleNotifToggle = useCallback((enabled: boolean) => {
+    setNotifs(enabled);
+  }, []);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
       <View style={StyleSheet.absoluteFillObject}>
@@ -57,7 +61,7 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.sectionTitle}>Preferences</Text>
         <View style={styles.group}>
-          <SettingRow icon="notifications-outline"  label="Push Notifications"  sublabel="Alerts for appointments & reports"   toggle value={notifs}    onValueChange={setNotifs} />
+          <SettingRow icon="notifications-outline"  label="Push Notifications"  sublabel={notifs ? 'Enabled — receiving alerts' : 'Disabled — tap to enable'}   toggle value={notifs}    onValueChange={handleNotifToggle} />
           <View style={styles.divider} />
           <SettingRow icon="finger-print-outline"   label="Biometric Login"     sublabel="Use Face ID or fingerprint to login" toggle value={biometric} onValueChange={setBio} />
           <View style={styles.divider} />
@@ -105,5 +109,21 @@ const styles = StyleSheet.create({
 
   versionRow: { alignItems: 'center', marginTop: 28 },
   versionText: { fontSize: 12, color: '#8AACBA', fontWeight: '500' },
-});
 
+  debugRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(0,0,0,0.03)',
+    borderRadius: 8,
+  },
+  debugText: {
+    fontSize: 10,
+    color: '#8AACBA',
+    fontFamily: 'monospace',
+    flex: 1,
+  },
+});

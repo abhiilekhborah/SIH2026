@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChipSelect } from '@/components/chip-select';
 import { FormField } from '@/components/form-field';
+import { getOrCreateDbUserId, supabase } from '@/lib/supabase';
 
 const BLUE = '#1A66E8';
 const DARK_BLUE = '#123E9E';
@@ -14,7 +15,6 @@ const BORDER = '#E5E7EB';
 
 const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
-/** Mirrors the text fields of patient_profiles. */
 type PatientForm = {
   name: string;
   abhaId: string;
@@ -45,7 +45,6 @@ const EMPTY_FORM: PatientForm = {
   pincode: '',
 };
 
-/** "peanuts, dust" becomes ["peanuts", "dust"], for the jsonb columns. */
 function toList(input: string): string[] {
   return input
     .split(',')
@@ -57,8 +56,6 @@ export default function PatientDetails() {
   const { user } = useUser();
   const router = useRouter();
 
-  // One object rather than a dozen useState calls. `update` writes a single
-  // field and copies the rest, so state is replaced instead of mutated.
   const [form, setForm] = useState<PatientForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
 
@@ -85,11 +82,10 @@ export default function PatientDetails() {
     setSaving(true);
 
     try {
-      // The shape the patient_profiles row expects. Columns the user does not
-      // fill are left out: id defaults in Postgres, and the foreign keys are
-      // resolved on the server.
+      const dbUserId = await getOrCreateDbUserId(user, form.name);
+
       const payload = {
-        user_id: user?.id,
+        ...(dbUserId ? { user_id: dbUserId } : {}),
         name: form.name.trim(),
         abha_id: form.abhaId.trim() || null,
         blood_group: form.bloodGroup[0] ?? null,
@@ -104,10 +100,29 @@ export default function PatientDetails() {
         pincode: form.pincode.trim() || null,
       };
 
-      // TODO: POST this to the backend that writes patient_profiles.
       console.log('patient_profiles payload', payload);
 
-      router.replace('/home');
+      try {
+        const { error: insertError } = await supabase.from('patient_profiles').insert(payload);
+        if (insertError) {
+          if (insertError.code === '23505' && dbUserId) {
+            const { error: updateError } = await supabase
+              .from('patient_profiles')
+              .update(payload)
+              .eq('user_id', dbUserId);
+            if (updateError) {
+              console.warn('Supabase update warning for patient_profiles:', updateError.message);
+            }
+          } else {
+            console.warn('Supabase insert warning for patient_profiles:', insertError.message);
+          }
+        }
+      } catch (dbErr) {
+        console.warn('Supabase request caught error:', dbErr);
+      }
+
+      // Patient home route in main front-end
+      router.replace('/(tabs)/home');
     } catch {
       Alert.alert('Could not save', 'Check your connection and try again.');
     } finally {
@@ -129,7 +144,7 @@ export default function PatientDetails() {
       >
         <Text style={styles.title}>Patient details</Text>
         <Text style={styles.subtitle}>
-          This helps us reach the right care for you, faster.
+          This helps doctors give you safer, faster care.
         </Text>
 
         <FormField
@@ -145,10 +160,9 @@ export default function PatientDetails() {
           label="ABHA ID"
           value={form.abhaId}
           onChangeText={(value) => update('abhaId', value)}
-          placeholder="14 digit health ID"
+          placeholder="14-digit Ayushman Bharat Health Account number"
           keyboardType="number-pad"
           maxLength={14}
-          hint="Leave blank if you do not have one yet."
         />
 
         <ChipSelect
@@ -158,13 +172,15 @@ export default function PatientDetails() {
           onChange={(value) => update('bloodGroup', value)}
         />
 
-        <Text style={styles.sectionHeading}>Emergency contact</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Emergency Contact</Text>
+        </View>
 
         <FormField
           label="Contact Name"
           value={form.emergencyContactName}
           onChangeText={(value) => update('emergencyContactName', value)}
-          placeholder="Who should we call?"
+          placeholder="e.g. John Doe (Brother)"
           autoCapitalize="words"
         />
 
@@ -172,43 +188,46 @@ export default function PatientDetails() {
           label="Contact Phone"
           value={form.emergencyContactPhone}
           onChangeText={(value) => update('emergencyContactPhone', value)}
-          placeholder="10 digit mobile number"
+          placeholder="+91 98765 43210"
           keyboardType="phone-pad"
-          maxLength={10}
         />
 
-        <Text style={styles.sectionHeading}>Medical history</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Medical History</Text>
+        </View>
 
         <FormField
           label="Allergies"
           value={form.allergies}
           onChangeText={(value) => update('allergies', value)}
-          placeholder="Penicillin, dust"
-          hint="Separate each one with a comma."
+          placeholder="Penicillin, Peanuts, Dust..."
+          hint="Separate multiple entries with commas"
         />
 
         <FormField
           label="Chronic Conditions"
           value={form.chronicConditions}
           onChangeText={(value) => update('chronicConditions', value)}
-          placeholder="Diabetes, asthma"
-          hint="Separate each one with a comma."
+          placeholder="Diabetes, Asthma, Hypertension..."
+          hint="Separate multiple entries with commas"
         />
 
-        <Text style={styles.sectionHeading}>Address</Text>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Location</Text>
+        </View>
 
         <FormField
-          label="Address"
+          label="Street Address / House No."
           value={form.address}
           onChangeText={(value) => update('address', value)}
-          placeholder="House number, street, landmark"
-          multiline
+          placeholder="House 42, Main Road"
         />
 
         <FormField
           label="Village / Town"
           value={form.villageTown}
           onChangeText={(value) => update('villageTown', value)}
+          placeholder="Rampur"
           autoCapitalize="words"
         />
 
@@ -216,6 +235,7 @@ export default function PatientDetails() {
           label="District"
           value={form.district}
           onChangeText={(value) => update('district', value)}
+          placeholder="Patna"
           autoCapitalize="words"
         />
 
@@ -223,6 +243,7 @@ export default function PatientDetails() {
           label="State"
           value={form.state}
           onChangeText={(value) => update('state', value)}
+          placeholder="Bihar"
           autoCapitalize="words"
         />
 
@@ -230,18 +251,18 @@ export default function PatientDetails() {
           label="Pincode"
           value={form.pincode}
           onChangeText={(value) => update('pincode', value)}
-          placeholder="6 digits"
+          placeholder="800001"
           keyboardType="number-pad"
           maxLength={6}
         />
 
         <Pressable
-          style={[styles.submitButton, saving && styles.submitButtonDisabled]}
+          style={styles.submitButton}
           onPress={handleSubmit}
           disabled={saving}
         >
           <Text style={styles.submitText}>
-            {saving ? 'Saving...' : 'Save and continue'}
+            {saving ? 'Saving...' : 'Save & Continue'}
           </Text>
         </Pressable>
       </ScrollView>
@@ -274,35 +295,34 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '700',
     color: '#111827',
-    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 8,
+    fontSize: 16,
+    color: '#4B5563',
+    marginTop: 6,
   },
-  sectionHeading: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#9CA3AF',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
+  sectionHeader: {
     marginTop: 28,
+    marginBottom: 4,
+    paddingBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: BORDER,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
   },
   submitButton: {
     height: 56,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: DARK_BLUE,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 32,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#9CA3AF',
   },
   submitText: {
     color: '#FFFFFF',

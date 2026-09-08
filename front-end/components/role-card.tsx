@@ -68,6 +68,8 @@ export function RoleCard({
   );
 }
 
+export default RoleCard;
+
 const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',

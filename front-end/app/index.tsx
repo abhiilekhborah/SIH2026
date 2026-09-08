@@ -1,5 +1,6 @@
 import { GetStartedButton } from '@/components/get-started-button';
-import { useAuth } from '@clerk/expo';
+import { getRoleDestination } from '@/lib/auth-helpers';
+import { useAuth, useUser } from '@clerk/expo';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { Redirect, useRouter } from 'expo-router';
@@ -11,9 +12,9 @@ const BLUE = '#1A66E8';
 export default function GetStartedScreen() {
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
+  const { user } = useUser();
 
   // Clerk is still reading the saved session out of storage, so show a spinner.
-  // Without this the screen would flash before a signed in user is sent to /home.
   if (!isLoaded) {
     return (
       <View style={styles.loadingScreen}>
@@ -22,11 +23,14 @@ export default function GetStartedScreen() {
     );
   }
 
-  // Already signed in, so skip this screen completely.
-  // This has to be a returned <Redirect>, not router.replace(): calling
-  // replace() here would navigate while React is still rendering.
+  // Already signed in: redirect based on saved role.
   if (isSignedIn) {
+<<<<<<< HEAD
     return <Redirect href="/(tab3)/home3" />;
+=======
+    const destination = getRoleDestination(user?.unsafeMetadata?.role);
+    return <Redirect href={destination} />;
+>>>>>>> 8f1ace26f82b9c1da1e8b9acef39b0bc927fe2a2
   }
 
   function handleGetStarted() {

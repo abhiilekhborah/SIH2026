@@ -32,7 +32,6 @@ export default function RootLayout() {
   }
 
   return (
-    // Required once at the root so gestures (the slide button) work on Android.
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
         <NotificationProvider>
@@ -96,4 +95,3 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 })
-

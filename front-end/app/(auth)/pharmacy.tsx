@@ -6,12 +6,12 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FormField } from '@/components/form-field';
+import { getOrCreateDbUserId, supabase } from '@/lib/supabase';
 
 const BLUE = '#1A66E8';
 const DARK_BLUE = '#123E9E';
 const BORDER = '#E5E7EB';
 
-/** Mirrors the fields of pharmacist_profiles that the pharmacist fills in. */
 type PharmacyForm = {
   name: string;
   licenseNo: string;
@@ -52,18 +52,37 @@ export default function PharmacyDetails() {
     setSaving(true);
 
     try {
+      const dbUserId = await getOrCreateDbUserId(user, form.name);
+
       const payload = {
-        user_id: user?.id,
+        ...(dbUserId ? { user_id: dbUserId } : {}),
         name: form.name.trim(),
         license_no: form.licenseNo.trim(),
-        // pharmacy_id points at a row in the pharmacies table, so it needs a
-        // picker rather than a text box. Left for when that list exists.
       };
 
-      // TODO: POST this to the backend that writes pharmacist_profiles.
       console.log('pharmacist_profiles payload', payload);
 
-      router.replace('/home');
+      try {
+        const { error: insertError } = await supabase.from('pharmacist_profiles').insert(payload);
+        if (insertError) {
+          if (insertError.code === '23505' && dbUserId) {
+            const { error: updateError } = await supabase
+              .from('pharmacist_profiles')
+              .update(payload)
+              .eq('user_id', dbUserId);
+            if (updateError) {
+              console.warn('Supabase update warning for pharmacist_profiles:', updateError.message);
+            }
+          } else {
+            console.warn('Supabase insert warning for pharmacist_profiles:', insertError.message);
+          }
+        }
+      } catch (dbErr) {
+        console.warn('Supabase request caught error:', dbErr);
+      }
+
+      // Pharmacy home route in main front-end
+      router.replace('/(tab3)/home3');
     } catch {
       Alert.alert('Could not save', 'Check your connection and try again.');
     } finally {
@@ -101,18 +120,18 @@ export default function PharmacyDetails() {
           label="Pharmacy Registration Number"
           value={form.licenseNo}
           onChangeText={(value) => update('licenseNo', value)}
-          placeholder="e.g. PCI-2020-11294"
+          placeholder="e.g. PH-2021-98765"
           autoCapitalize="characters"
           required
         />
 
         <Pressable
-          style={[styles.submitButton, saving && styles.submitButtonDisabled]}
+          style={styles.submitButton}
           onPress={handleSubmit}
           disabled={saving}
         >
           <Text style={styles.submitText}>
-            {saving ? 'Saving...' : 'Save and continue'}
+            {saving ? 'Saving...' : 'Save & Continue'}
           </Text>
         </Pressable>
       </ScrollView>
@@ -145,27 +164,22 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '700',
     color: '#111827',
-    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 8,
+    fontSize: 16,
+    color: '#4B5563',
+    marginTop: 6,
   },
   submitButton: {
     height: 56,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: DARK_BLUE,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 32,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#9CA3AF',
   },
   submitText: {
     color: '#FFFFFF',
