@@ -865,7 +865,7 @@ const historyStyles = StyleSheet.create({
   moreButton: { padding: 4 },
 });
 
-const GROQ_API_KEY = "GROQ_KEY_REMOVED";
+const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY ?? '';
 
 async function fetchGroqResponse(chatMessages: Message[]): Promise<string> {
   const formattedMessages = chatMessages.map((msg) => ({
