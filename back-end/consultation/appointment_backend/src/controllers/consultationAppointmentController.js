@@ -172,8 +172,10 @@ export const respondToAppointmentRequest = async (req, res) => {
         appointment_request_id: targetRequestId,
         doctor_id: requestRecord.doctor_id,
         patient_id: requestRecord.patient_id,
-        scheduled_time: finalScheduledTime,
+        scheduled_at: finalScheduledTime,
         status: "scheduled",
+        mode: requestRecord.request_type?.includes("teleconsultation") ? "video" : "in_person",
+        booked_by: "patient",
       };
 
       const { data: newAppt, error: apptErr } = await supabase
@@ -282,11 +284,7 @@ export const getDoctorRequests = async (req, res) => {
       .from("appointment_requests")
       .select(`
         *,
-        patient:patient_id (
-          id,
-          name,
-          phone
-        )
+        patient:patient_profiles (*)
       `)
       .eq("doctor_id", doctorId)
       .order("created_at", { ascending: false })
@@ -313,14 +311,7 @@ export const getPatientRequests = async (req, res) => {
       .from("appointment_requests")
       .select(`
         *,
-        doctor:doctor_id (
-          id,
-          name,
-          specialty,
-          rating,
-          review_count,
-          status
-        )
+        doctor:doctor_profiles (*)
       `)
       .eq("patient_id", patientId)
       .order("created_at", { ascending: false })

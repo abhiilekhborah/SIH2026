@@ -5,6 +5,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 
 import teleconsultRoutes from "./routes/teleconsult.routes.js";
+import appointmentRoutes from "./appointment_backend/src/routes/consultationAppointmentRoutes.js";
 import config from "./config/consultation.config.js";
 
 dotenv.config();
@@ -23,6 +24,7 @@ app.get("/health", (_req, res) => {
 });
 
 // ── Routes ───────────────────────────────────────────────────────────────────
+app.use("/api/v1/consultation/appointments", appointmentRoutes);
 app.use("/api/v1/consultation", teleconsultRoutes);
 
 // ── 404 Handler ──────────────────────────────────────────────────────────────
