@@ -3,12 +3,14 @@ import { useSideMenu } from '@/components/side-menu-context';
 import { useNotifications } from '@/components/notification-context';
 import { useUser } from '@clerk/expo';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useRouter } from 'expo-router';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   Alert,
   Animated,
   Linking,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,6 +19,7 @@ import {
   Vibration,
   View,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface LocationData {
@@ -852,6 +855,7 @@ const dashStyles = StyleSheet.create({
 // ─── Main Emergency Tab ───────────────────────────────────────────────
 
 export default function Emergency() {
+  const router = useRouter();
   const { openMenu } = useSideMenu();
   const { openNotifications } = useNotifications();
   const { user } = useUser();
@@ -965,7 +969,9 @@ export default function Emergency() {
     Alert.alert('Directions', `Opening maps for ${lat.toFixed(4)}, ${lng.toFixed(4)}`);
   }, []);
 
-  const handleViewMap = useCallback(() => Alert.alert('Hospital Map', 'Opening hospital map view'), []);
+  const handleViewMap = useCallback(() => {
+    router.push('/(tabs)/hospital' as any);
+  }, [router]);
   const handleShareLocation = useCallback(() => Alert.alert('Location Shared', 'Your live location has been shared with your emergency contact.'), []);
 
   const isActive = emergencyStatus === 'active' || emergencyStatus === 'sending';
