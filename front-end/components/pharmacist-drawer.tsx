@@ -82,7 +82,6 @@ export function PharmacistDrawer({ visible, onClose }: PharmacistDrawerProps) {
 
   const menuItems = [
     { id: 'profile', title: 'Profile & Dispensary', icon: 'person-outline' as const, path: '/(tab3)/profile3' },
-    { id: 'gallery', title: 'Gallery & Licences', icon: 'images-outline' as const, path: '/(tab3)/gallery' },
     { id: 'health_analysis', title: 'Health Analysis', icon: 'analytics-outline' as const, path: '/(tab3)/health-analysis' },
     { id: 'referrals', title: 'Doctor Referrals', icon: 'people-outline' as const, path: '/(tab3)/referrals' },
     { id: 'about_us', title: 'About MediQuick', icon: 'information-circle-outline' as const, path: '/(tab3)/about-us' },

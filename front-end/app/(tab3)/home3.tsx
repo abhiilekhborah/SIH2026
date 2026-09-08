@@ -13,11 +13,8 @@ import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
-  Animated,
   Dimensions,
   Modal,
-  PanResponder,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -37,6 +34,14 @@ const TEXT_MUTED = '#64748B';
 const BORDER_COLOR = '#E2E8F0';
 const BG_PAGE = '#F8FAFC';
 
+interface PatientNotification {
+  id: string;
+  patientName: string;
+  message: string;
+  time: string;
+  read: boolean;
+}
+
 export default function PharmacistHomeScreen() {
   const router = useRouter();
   const { openMenu } = useSideMenu();
@@ -50,6 +55,9 @@ export default function PharmacistHomeScreen() {
     respondToAvailabilityRequest,
     sendQuickResponse,
   } = usePharmacyStore();
+
+  // Patient Notifications (from Quick Text sends)
+  const [patientNotifications, setPatientNotifications] = useState<PatientNotification[]>([]);
 
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -99,49 +107,81 @@ export default function PharmacistHomeScreen() {
     );
   }, [availabilityRequests, searchQuery]);
 
-  // Alert single-card crossfade + manual swipe
+  // Alert carousel — infinite loop with triple-rendering
   const [activeAlertIndex, setActiveAlertIndex] = useState(0);
-  const alertFade = useRef(new Animated.Value(1)).current;
-  const isFading = useRef(false);
+  const alertScrollRef = useRef<ScrollView>(null);
+  const ALERT_CARD_WIDTH = SCREEN_WIDTH - 32; // full width minus padding
+  const ALERT_GAP = 12;
+  const ALERT_ITEM_WIDTH = ALERT_CARD_WIDTH + ALERT_GAP;
+  const MULTIPLIER = 3; // triple the array for seamless loop
 
-  const goToAlert = useCallback((nextIndex: number) => {
-    if (isFading.current) return;
-    isFading.current = true;
-    Animated.timing(alertFade, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
-      setActiveAlertIndex(nextIndex);
-      Animated.timing(alertFade, { toValue: 1, duration: 200, useNativeDriver: true }).start(() => {
-        isFading.current = false;
-      });
-    });
-  }, [alertFade]);
+  // Render position: start from the middle copy so we can scroll both directions
+  const getRenderIndex = useCallback((realIndex: number) => {
+    return alerts.length + realIndex;
+  }, [alerts.length]);
 
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy),
-      onPanResponderRelease: (_, g) => {
-        if (g.dx < -40) {
-          setActiveAlertIndex(prev => { goToAlert((prev + 1) % alerts.length); return prev; });
-        } else if (g.dx > 40) {
-          setActiveAlertIndex(prev => { goToAlert((prev - 1 + alerts.length) % alerts.length); return prev; });
-        }
-      },
-    })
-  ).current;
+  // Jump silently to the equivalent position in the first copy
+  const jumpToRealIndex = useCallback((realIndex: number) => {
+    const renderIndex = alerts.length + realIndex;
+    alertScrollRef.current?.scrollTo({ x: renderIndex * ALERT_ITEM_WIDTH, animated: false });
+  }, [ALERT_ITEM_WIDTH, alerts.length]);
 
+  // On mount, scroll to the start of the middle copy
+  useEffect(() => {
+    if (alerts.length === 0) return;
+    jumpToRealIndex(0);
+  }, [alerts.length, jumpToRealIndex]);
+
+  // Auto-swipe every 3.5s
   useEffect(() => {
     if (alerts.length <= 1) return;
     const interval = setInterval(() => {
-      setActiveAlertIndex(prev => { goToAlert((prev + 1) % alerts.length); return prev; });
-    }, 4000);
+      setActiveAlertIndex(prev => (prev + 1) % alerts.length);
+    }, 3500);
     return () => clearInterval(interval);
-  }, [alerts.length, goToAlert]);
+  }, [alerts.length]);
 
-  // Handle Quick SBRT Send
+  // After setting activeAlertIndex, scroll to the triple-rendered position
+  useEffect(() => {
+    if (alerts.length === 0) return;
+    const renderIndex = getRenderIndex(activeAlertIndex);
+    alertScrollRef.current?.scrollTo({ x: renderIndex * ALERT_ITEM_WIDTH, animated: true });
+  }, [activeAlertIndex, getRenderIndex, ALERT_ITEM_WIDTH, alerts.length]);
+
+  // When user swipes or momentum ends, detect the real index and update state
+  const handleAlertScroll = (e: any) => {
+    const x = e.nativeEvent.contentOffset.x;
+    const rawIndex = Math.round(x / ALERT_ITEM_WIDTH);
+    const realIndex = ((rawIndex % alerts.length) + alerts.length) % alerts.length;
+    if (realIndex !== activeAlertIndex) {
+      setActiveAlertIndex(realIndex);
+    }
+    // If we've scrolled past the middle copy into the third, jump back to first copy silently
+    const copyIndex = Math.floor(rawIndex / alerts.length);
+    if (copyIndex >= 2) {
+      jumpToRealIndex(realIndex);
+    }
+  };
+
+  // Handle Quick Text Send
   const handleSendQuickReply = () => {
     if (!quickReplyRx) return;
     sendQuickResponse(quickReplyRx.id, quickReplyText);
-    Alert.alert('Message Sent', `SMS sent to patient ${quickReplyRx.patientName}: "${quickReplyText}"`);
+    const newNotif: PatientNotification = {
+      id: `pn-${Date.now()}`,
+      patientName: quickReplyRx.patientName,
+      message: quickReplyText,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      read: false,
+    };
+    setPatientNotifications(prev => [newNotif, ...prev]);
+    Alert.alert('Message Sent', `SMS sent to patient ${quickReplyRx.patientName}`);
     setQuickReplyRx(null);
+  };
+
+  // Delete a patient notification
+  const deletePatientNotification = (id: string) => {
+    setPatientNotifications(prev => prev.filter(n => n.id !== id));
   };
 
   // Handle Stock Update
@@ -185,7 +225,6 @@ export default function PharmacistHomeScreen() {
             </View>
             <View>
               <Text style={styles.headerTitle}>MediQuick</Text>
-              <Text style={styles.headerSubtitle}>Rural Pharmacy Portal</Text>
             </View>
           </View>
         }
@@ -196,7 +235,7 @@ export default function PharmacistHomeScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* 2. Urgent Dispensary Alerts — single fixed card, content changes via crossfade & swipe */}
+        {/* 2. Urgent Dispensary Alerts — smooth auto-swipe carousel */}
         {alerts.length > 0 && (
           <View style={styles.sectionBlock}>
             <View style={styles.sectionHeaderRow}>
@@ -207,68 +246,80 @@ export default function PharmacistHomeScreen() {
               <Text style={styles.alertCountBadge}>{alerts.length} Active</Text>
             </View>
 
-            {(() => {
-              const alert = alerts[activeAlertIndex];
-              const isDanger = alert.type === 'danger';
-              const isWarning = alert.type === 'warning';
-              const isSuccess = alert.type === 'success';
-              const accentColor = isDanger ? '#E11D48' : isWarning ? '#D97706' : isSuccess ? '#059669' : '#1D4ED8';
+            <ScrollView
+              ref={alertScrollRef}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              snapToInterval={ALERT_ITEM_WIDTH}
+              decelerationRate="fast"
+              onMomentumScrollEnd={handleAlertScroll}
+              scrollEventThrottle={0}
+              bounces={false}
+            >
+              {Array.from({ length: alerts.length * MULTIPLIER }).map((_, i) => {
+                const realIndex = i % alerts.length;
+                const alert = alerts[realIndex];
+                const isDanger = alert.type === 'danger';
+                const isWarning = alert.type === 'warning';
+                const isSuccess = alert.type === 'success';
+                const accentColor = isDanger ? '#E11D48' : isWarning ? '#D97706' : isSuccess ? '#059669' : '#1D4ED8';
 
-              return (
-                <Animated.View
-                  {...panResponder.panHandlers}
-                  style={[styles.alertCard, { opacity: alertFade }]}
-                >
-                  <View style={styles.alertHeader}>
-                    <View style={styles.alertIconTag}>
-                      <Ionicons
-                        name={isDanger ? 'alert-circle' : isWarning ? 'warning' : isSuccess ? 'thermometer' : 'information-circle'}
-                        size={18}
-                        color={accentColor}
-                      />
-                      <Text style={[styles.alertTagText, { color: accentColor }]}>
-                        {alert.time}
-                      </Text>
+                return (
+                  <View
+                    key={`alert-${realIndex}-${Math.floor(i / alerts.length)}`}
+                    style={[styles.alertCard, { width: ALERT_CARD_WIDTH, marginRight: ALERT_GAP }]}
+                  >
+                    <View style={styles.alertHeader}>
+                      <View style={styles.alertIconTag}>
+                        <Ionicons
+                          name={isDanger ? 'alert-circle' : isWarning ? 'warning' : isSuccess ? 'thermometer' : 'information-circle'}
+                          size={18}
+                          color={accentColor}
+                        />
+                        <Text style={[styles.alertTagText, { color: accentColor }]}>
+                          {alert.time}
+                        </Text>
+                      </View>
                     </View>
+
+                    <Text style={styles.alertTitle} numberOfLines={1}>
+                      {alert.title}
+                    </Text>
+                    <Text style={styles.alertMessage} numberOfLines={2}>
+                      {alert.message}
+                    </Text>
+
+                    {alert.actionText && (
+                      <TouchableOpacity
+                        style={styles.alertActionBtn}
+                        onPress={() => {
+                          if (alert.category === 'stock' || alert.category === 'expiry') {
+                            const found = inventory.find(i => i.id === alert.relatedId);
+                            if (found) setStockModalItem(found);
+                            else router.navigate('/(tab3)/inventory');
+                          } else if (alert.category === 'rx') {
+                            router.navigate('/(tab3)/prescription');
+                          } else {
+                            Alert.alert(alert.title, alert.message);
+                          }
+                        }}
+                        activeOpacity={0.8}
+                      >
+                        <Text style={styles.alertActionText}>{alert.actionText}</Text>
+                        <Ionicons name="arrow-forward" size={14} color="#1A66E8" />
+                      </TouchableOpacity>
+                    )}
                   </View>
-
-                  <Text style={styles.alertTitle} numberOfLines={1}>
-                    {alert.title}
-                  </Text>
-                  <Text style={styles.alertMessage} numberOfLines={2}>
-                    {alert.message}
-                  </Text>
-
-                  {alert.actionText && (
-                    <TouchableOpacity
-                      style={styles.alertActionBtn}
-                      onPress={() => {
-                        if (alert.category === 'stock' || alert.category === 'expiry') {
-                          const found = inventory.find(i => i.id === alert.relatedId);
-                          if (found) setStockModalItem(found);
-                          else router.navigate('/(tab3)/inventory');
-                        } else if (alert.category === 'rx') {
-                          router.navigate('/(tab3)/prescription');
-                        } else {
-                          Alert.alert(alert.title, alert.message);
-                        }
-                      }}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.alertActionText}>{alert.actionText}</Text>
-                      <Ionicons name="arrow-forward" size={14} color="#1A66E8" />
-                    </TouchableOpacity>
-                  )}
-                </Animated.View>
-              );
-            })()}
+                );
+              })}
+            </ScrollView>
 
             {alerts.length > 1 && (
               <View style={styles.paginationDots}>
                 {alerts.map((_, idx) => (
                   <TouchableOpacity
                     key={idx}
-                    onPress={() => goToAlert(idx)}
+                    onPress={() => setActiveAlertIndex(idx)}
                     style={[styles.paginationDot, idx === activeAlertIndex && styles.paginationDotActive]}
                   />
                 ))}
@@ -321,49 +372,8 @@ export default function PharmacistHomeScreen() {
               snapToInterval={CARD_WIDTH + 14}
             >
               {filteredPrescriptions.map((rx) => {
-                const isPending = rx.status === 'Pending';
-                const isAccepted = rx.status === 'Accepted';
-                const isProcessing = rx.status === 'Processing';
-                const isReady = rx.status === 'Ready';
-
                 return (
                   <View key={rx.id} style={styles.rxCard}>
-                    {/* Top row: Rx code & Priority badge */}
-                    <View style={styles.rxCardHeader}>
-                      <View style={styles.rxIdRow}>
-                        <Text style={styles.rxId}>{rx.rxNumber}</Text>
-                        <Text style={styles.rxTime}>{rx.time}</Text>
-                      </View>
-                      <View style={styles.rxBadgesRow}>
-                        {rx.priority === 'Urgent' && (
-                          <View style={styles.urgentBadge}>
-                            <Text style={styles.urgentBadgeText}>URGENT</Text>
-                          </View>
-                        )}
-                        <View
-                          style={[
-                            styles.statusPill,
-                            isPending && styles.statusPending,
-                            isAccepted && styles.statusAccepted,
-                            isProcessing && styles.statusProcessing,
-                            isReady && styles.statusReady,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.statusPillText,
-                              isPending && styles.textPending,
-                              isAccepted && styles.textAccepted,
-                              isProcessing && styles.textProcessing,
-                              isReady && styles.textReady,
-                            ]}
-                          >
-                            {rx.status}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
                     {/* Patient info */}
                     <View style={styles.rxPatientInfo}>
                       <Text style={styles.rxPatientName} numberOfLines={1}>
@@ -373,6 +383,7 @@ export default function PharmacistHomeScreen() {
                         {rx.patientAge}y • {rx.patientGender} • {rx.doctorHospital}
                       </Text>
                       <Text style={styles.rxDoctorName}>Dr: {rx.doctorName}</Text>
+                      <Text style={styles.rxTime}>{rx.time}</Text>
                     </View>
 
                     {/* Prescribed Items summary */}
@@ -635,6 +646,39 @@ export default function PharmacistHomeScreen() {
             );
           })}
         </View>
+
+        {/* 7. Patient Notifications (from Quick Text sends) */}
+        {patientNotifications.length > 0 && (
+          <View style={styles.sectionBlock}>
+            <View style={styles.sectionHeaderRow}>
+              <View style={styles.titleWithIcon}>
+                <Ionicons name="chatbubble-ellipses" size={20} color="#059669" />
+                <Text style={styles.sectionTitle}>Patient Notifications</Text>
+              </View>
+              <Text style={styles.notifCountBadge}>{patientNotifications.length} Sent</Text>
+            </View>
+
+            {patientNotifications.map((notif) => (
+              <View key={notif.id} style={styles.patientNotifCard}>
+                <View style={styles.patientNotifContent}>
+                  <Ionicons name="checkmark-done-circle" size={18} color="#059669" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.patientNotifTitle}>Sent to {notif.patientName}</Text>
+                    <Text style={styles.patientNotifMsg} numberOfLines={2}>{notif.message}</Text>
+                    <Text style={styles.patientNotifTime}>{notif.time}</Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={styles.patientNotifDeleteBtn}
+                  onPress={() => deletePatientNotification(notif.id)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        )}
       </ScrollView>
 
       {/* ========================================================================= */}
@@ -970,8 +1014,8 @@ export default function PharmacistHomeScreen() {
           <View style={[styles.modalCard, { maxHeight: '80%' }]}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Pharmacy Notifications</Text>
-                <Text style={styles.modalSub}>{alerts.length} active system updates</Text>
+                <Text style={styles.modalTitle}>Notifications</Text>
+                <Text style={styles.modalSub}>{alerts.length} alerts • {patientNotifications.length} patient messages</Text>
               </View>
               <TouchableOpacity onPress={() => setShowNotifications(false)} style={styles.modalCloseBtn}>
                 <Ionicons name="close" size={20} color="#64748B" />
@@ -979,14 +1023,34 @@ export default function PharmacistHomeScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
+              {/* Pharmacy Alerts */}
               {alerts.map((al) => (
                 <View key={al.id} style={styles.notifItem}>
-                  <Ionicons name="notifications" size={18} color="#1A66E8" />
+                  <Ionicons name="notifications" size={18} color="#E11D48" />
                   <View style={{ flex: 1 }}>
                     <Text style={styles.notifTitle}>{al.title}</Text>
                     <Text style={styles.notifMsg}>{al.message}</Text>
                     <Text style={styles.notifTime}>{al.time}</Text>
                   </View>
+                </View>
+              ))}
+
+              {/* Patient Notifications */}
+              {patientNotifications.map((notif) => (
+                <View key={notif.id} style={styles.notifItem}>
+                  <Ionicons name="chatbubble-ellipses" size={18} color="#059669" />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.notifTitle}>Sent to {notif.patientName}</Text>
+                    <Text style={styles.notifMsg} numberOfLines={2}>{notif.message}</Text>
+                    <Text style={styles.notifTime}>{notif.time}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.notifDeleteBtn}
+                    onPress={() => deletePatientNotification(notif.id)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                  </TouchableOpacity>
                 </View>
               ))}
             </ScrollView>
@@ -1226,7 +1290,6 @@ const styles = StyleSheet.create({
   // Prescription Request Cards
   rxCard: {
     width: CARD_WIDTH,
-    height: 285,
     backgroundColor: '#FFFFFF',
     borderRadius: 20,
     padding: 14,
@@ -1239,60 +1302,12 @@ const styles = StyleSheet.create({
     elevation: 2,
     justifyContent: 'space-between',
   },
-  rxCardHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingBottom: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
-  },
-  rxIdRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  rxId: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: TEXT_DARK,
+  rxPatientInfo: {
+    marginTop: 4,
   },
   rxTime: {
     fontSize: 12,
     color: TEXT_MUTED,
-  },
-  rxBadgesRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  urgentBadge: {
-    backgroundColor: '#FEE2E2',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  urgentBadgeText: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#EF4444',
-  },
-  statusPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  statusPending: { backgroundColor: '#FEF3C7' },
-  statusAccepted: { backgroundColor: '#DBEAFE' },
-  statusProcessing: { backgroundColor: '#E0E7FF' },
-  statusReady: { backgroundColor: '#DCFCE7' },
-  statusPillText: { fontSize: 11, fontWeight: '700' },
-  textPending: { color: '#B45309' },
-  textAccepted: { color: '#1D4ED8' },
-  textProcessing: { color: '#4338CA' },
-  textReady: { color: '#15803D' },
-
-  rxPatientInfo: {
     marginTop: 4,
   },
   rxPatientName: {
@@ -2002,5 +2017,64 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#94A3B8',
     marginTop: 4,
+  },
+  notifDeleteBtn: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#FEF2F2',
+    alignSelf: 'center',
+  },
+
+  // Patient Notifications Section
+  notifCountBadge: {
+    backgroundColor: '#DCFCE7',
+    color: '#059669',
+    fontSize: 11,
+    fontWeight: '700',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+  },
+  patientNotifCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#DCFCE7',
+    marginBottom: 8,
+    shadowColor: '#059669',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  patientNotifContent: {
+    flex: 1,
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'flex-start',
+  },
+  patientNotifTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: TEXT_DARK,
+  },
+  patientNotifMsg: {
+    fontSize: 12,
+    color: TEXT_MUTED,
+    marginTop: 2,
+  },
+  patientNotifTime: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 4,
+  },
+  patientNotifDeleteBtn: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#FEF2F2',
   },
 });
