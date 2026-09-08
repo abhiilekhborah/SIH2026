@@ -113,16 +113,31 @@ const MOCK_CONVERSATIONS: ChatConversation[] = [
 
 // ─── AI Avatar ──────────────────────────────────────────────────────────
 
-function AIAvatar({ size = 40 }: { size?: number }) {
+function AIAvatar({ size = 40, animate = false }: { size?: number, animate?: boolean }) {
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (animate) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseAnim, { toValue: 1.08, duration: 1500, useNativeDriver: true }),
+          Animated.timing(pulseAnim, { toValue: 1, duration: 1500, useNativeDriver: true }),
+        ])
+      ).start();
+    }
+  }, [animate]);
+
   return (
-    <LinearGradient
-      colors={[COLORS.primary, COLORS.primaryLight]}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 1, y: 1 }}
-      style={[aiAvatarStyles.container, { width: size, height: size, borderRadius: size / 2 }]}
-    >
-      <Ionicons name="medical" size={size * 0.5} color="#FFFFFF" />
-    </LinearGradient>
+    <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
+      <LinearGradient
+        colors={['#0D9488', '#2DD4BF']} 
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[aiAvatarStyles.container, { width: size, height: size, borderRadius: size / 2 }]}
+      >
+        <Ionicons name="medical" size={size * 0.5} color="#FFFFFF" />
+      </LinearGradient>
+    </Animated.View>
   );
 }
 
@@ -170,10 +185,10 @@ const headerStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 10,
-    backgroundColor: COLORS.surface,
+    paddingVertical: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.borderLight,
+    borderBottomColor: 'rgba(255, 255, 255, 0.4)',
   },
   info: { flex: 1, marginLeft: 12 },
   title: { fontSize: 17, fontWeight: '700', color: COLORS.text },
@@ -209,12 +224,17 @@ const chipStyles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: COLORS.primaryBg,
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: COLORS.primaryBorder,
+    borderColor: 'rgba(13, 148, 136, 0.2)',
     borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    shadowColor: COLORS.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
   },
   chipText: { fontSize: 13, fontWeight: '500', color: COLORS.primaryDark },
 });
@@ -224,6 +244,9 @@ const chipStyles = StyleSheet.create({
 function EmptyState({ onSelectSuggestion }: { onSelectSuggestion: (text: string) => void }) {
   return (
     <View style={emptyStyles.container}>
+      <View style={emptyStyles.avatarWrapper}>
+        <AIAvatar size={72} animate={true} />
+      </View>
       <Text style={emptyStyles.title}>How can I help you today?</Text>
       <Text style={emptyStyles.subtitle}>
         Ask AI Care about your health, reports, medications, or symptoms.
@@ -240,6 +263,14 @@ const emptyStyles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 32,
     paddingBottom: 100,
+  },
+  avatarWrapper: {
+    marginBottom: 24,
+    shadowColor: COLORS.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
   },
   title: {
     fontSize: 22,
@@ -261,6 +292,16 @@ const emptyStyles = StyleSheet.create({
 
 function MessageBubble({ message }: { message: Message }) {
   const isUser = message.role === 'user';
+
+  const slideAnim = useRef(new Animated.Value(15)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(slideAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 300, useNativeDriver: true })
+    ]).start();
+  }, []);
 
   const renderFormattedText = (text: string) => {
     const lines = text.split('\n');
@@ -291,20 +332,27 @@ function MessageBubble({ message }: { message: Message }) {
   };
 
   return (
-    <View style={[bubbleStyles.row, isUser && bubbleStyles.userRow]}>
+    <Animated.View style={[bubbleStyles.row, isUser && bubbleStyles.userRow, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
       {!isUser && (
         <View style={bubbleStyles.avatarContainer}>
           <AIAvatar size={32} />
         </View>
       )}
-      <View style={[bubbleStyles.bubble, isUser ? bubbleStyles.userBubble : bubbleStyles.aiBubble]}>
-        {isUser ? (
+      {isUser ? (
+        <LinearGradient
+          colors={['#14B8A6', '#0D9488']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[bubbleStyles.bubble, bubbleStyles.userBubble]}
+        >
           <Text style={bubbleStyles.userText}>{message.text}</Text>
-        ) : (
+        </LinearGradient>
+      ) : (
+        <View style={[bubbleStyles.bubble, bubbleStyles.aiBubble]}>
           <View>{renderFormattedText(message.text)}</View>
-        )}
-      </View>
-    </View>
+        </View>
+      )}
+    </Animated.View>
   );
 }
 
@@ -324,19 +372,23 @@ const bubbleStyles = StyleSheet.create({
     paddingVertical: 12,
   },
   userBubble: {
-    backgroundColor: COLORS.userBubble,
     borderBottomRightRadius: 4,
+    shadowColor: COLORS.primaryDark,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 3,
   },
   aiBubble: {
     backgroundColor: COLORS.aiBubble,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: 'rgba(255,255,255,0.8)',
     borderBottomLeftRadius: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   userText: {
     fontSize: 15,
@@ -435,17 +487,17 @@ const typingStyles = StyleSheet.create({
     flexDirection: 'row',
     backgroundColor: COLORS.aiBubble,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: 'rgba(255,255,255,0.8)',
     borderRadius: 18,
     borderBottomLeftRadius: 4,
     paddingHorizontal: 16,
     paddingVertical: 14,
     gap: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 2,
   },
   dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: COLORS.textMuted },
 });
@@ -507,11 +559,17 @@ function ChatInputBar({
             <Ionicons name="mic-outline" size={20} color={COLORS.textSecondary} />
           </TouchableOpacity>
           <TouchableOpacity
-            style={[inputStyles.sendButton, hasText && inputStyles.sendButtonActive]}
             onPress={onSend}
             activeOpacity={0.7}
           >
-            <Ionicons name="arrow-up" size={22} color={hasText ? '#FFFFFF' : COLORS.textMuted} />
+            <LinearGradient
+              colors={hasText ? ['#14B8A6', '#0D9488'] : [COLORS.borderLight, COLORS.borderLight]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[inputStyles.sendButton, hasText && inputStyles.sendButtonActive]}
+            >
+              <Ionicons name="arrow-up" size={22} color={hasText ? '#FFFFFF' : COLORS.textMuted} />
+            </LinearGradient>
           </TouchableOpacity>
         </View>
       </View>
@@ -522,22 +580,25 @@ function ChatInputBar({
 const inputStyles = StyleSheet.create({
   outerContainer: {
     paddingHorizontal: 16,
-    paddingBottom: 75,
+    paddingBottom: Platform.OS === 'ios' ? 95 : 85,
     paddingTop: 8,
-    backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
+    backgroundColor: 'transparent',
   },
   container: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: COLORS.background,
-    borderRadius: 24,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 30,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: 'rgba(255, 255, 255, 1)',
     paddingHorizontal: 8,
     paddingVertical: 6,
-    minHeight: 52,
+    minHeight: 56,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 24,
+    elevation: 5,
   },
   leftIcons: {
     flexDirection: 'row',
@@ -573,7 +634,6 @@ const inputStyles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendButtonActive: {
-    backgroundColor: COLORS.primary,
   },
 });
 
@@ -684,11 +744,16 @@ const historyStyles = StyleSheet.create({
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
   sheetContainer: { maxHeight: SCREEN_HEIGHT * 0.75 },
   sheet: {
-    backgroundColor: COLORS.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    backgroundColor: '#F8FAFC',
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
     paddingBottom: 32,
     maxHeight: SCREEN_HEIGHT * 0.75,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+    elevation: 20,
   },
   handle: {
     width: 36,
@@ -744,11 +809,16 @@ const historyStyles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: COLORS.surface,
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 6,
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: COLORS.borderLight,
+    borderColor: 'rgba(255,255,255,0.8)',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
   },
   convLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   convIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: COLORS.primaryBg, alignItems: 'center', justifyContent: 'center' },
@@ -970,7 +1040,7 @@ const styles = StyleSheet.create({
   },
   chatArea: {
     flex: 1,
-    backgroundColor: '#F8FFFE',
+    backgroundColor: 'transparent',
   },
   messagesContainer: {
     flex: 1,
@@ -978,6 +1048,6 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     paddingTop: 16,
-    paddingBottom: 8,
+    paddingBottom: 20,
   },
 });
