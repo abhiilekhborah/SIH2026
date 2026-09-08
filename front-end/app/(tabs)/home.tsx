@@ -9,6 +9,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
