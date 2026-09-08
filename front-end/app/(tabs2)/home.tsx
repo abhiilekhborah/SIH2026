@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -48,8 +48,7 @@ const MOCK_NOTIFICATIONS = [
 
 const MOCK_ALERTS = [
   { id: '1', title: 'Next Appointment', message: 'In 15 mins with Raj Patel', type: 'info', icon: 'time-outline' },
-  { id: '2', title: 'Emergency Message', message: 'Code Blue in Ward A', type: 'danger', icon: 'warning-outline' },
-  { id: '3', title: 'Prescription Review', message: '2 pending reviews', type: 'warning', icon: 'document-text-outline' },
+  { id: '2', title: 'New Notifications', message: '2 new updates need your attention', type: 'info', icon: 'notifications-outline' },
 ];
 
 const MOCK_CONNECTIONS = [
@@ -114,13 +113,29 @@ export default function Home() {
   const [scheduleVisible, setScheduleVisible] = useState(false);
   const [staffVisible, setStaffVisible] = useState(false);
   const [quickRecordsVisible, setQuickRecordsVisible] = useState(false);
+  const [selectedPatientRecord, setSelectedPatientRecord] = useState<typeof MOCK_RECORDS[number] | null>(null);
   const [statusVisible, setStatusVisible] = useState(false);
+  const [showGreeting, setShowGreeting] = useState(true);
+  const greetingOpacity = useRef(new Animated.Value(1)).current;
+  const alertsOpacity = useRef(new Animated.Value(0)).current;
 
   // Selected schedule day state
   const [selectedScheduleDay, setSelectedScheduleDay] = useState('Mon');
 
   // Animation for left-side sidebar drawer
   const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
+
+  useEffect(() => {
+    const transition = Animated.sequence([
+      Animated.delay(2500),
+      Animated.timing(greetingOpacity, { toValue: 0, duration: 280, useNativeDriver: true }),
+    ]);
+    transition.start(() => {
+      setShowGreeting(false);
+      Animated.timing(alertsOpacity, { toValue: 1, duration: 360, useNativeDriver: true }).start();
+    });
+    return () => transition.stop();
+  }, [alertsOpacity, greetingOpacity]);
 
   const openMenu = () => {
     setMenuVisible(true);
@@ -163,7 +178,7 @@ export default function Home() {
               <Ionicons name="menu-outline" size={26} color={COLORS.primaryBlue} />
             </Pressable>
             <View style={styles.brandContainer}>
-              <Ionicons name="pulse" size={22} color={COLORS.primaryBlue} />
+              <Ionicons name="medkit-outline" size={22} color={COLORS.primaryBlue} />
               <Text style={styles.brandText}>MediQuick</Text>
             </View>
           </View>
@@ -177,15 +192,15 @@ export default function Home() {
         </View>
 
         <View style={styles.centerContainer}>
-          {/* Alerts Section */}
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Quick Alerts</Text>
-              <Text style={styles.sectionSubtitle}>Urgent updates and priorities</Text>
+          <View style={styles.summarySlot}>
+          {showGreeting ? <Animated.View style={[styles.greetingCard, { opacity: greetingOpacity }]}>
+            <View style={styles.greetingIcon}><Ionicons name="sunny-outline" size={23} color={COLORS.primaryBlue} /></View>
+            <View style={styles.greetingCopy}><Text style={styles.greetingTitle}>Good morning, {userName}</Text><Text style={styles.greetingSub}>Here&apos;s your care overview for today.</Text></View>
+          </Animated.View> : <Animated.View style={[styles.alertsPanel, { opacity: alertsOpacity }]}>
+            <View style={styles.alertsHeader}>
+              <Text style={styles.sectionSubtitle}>Your latest care updates</Text>
             </View>
-          </View>
-
-          {MOCK_ALERTS.map((alert) => {
+            {MOCK_ALERTS.map((alert) => {
             const bgColor = alert.type === 'danger' ? COLORS.dangerLight : alert.type === 'warning' ? COLORS.warningLight : COLORS.primaryBlueLight;
             const color = alert.type === 'danger' ? COLORS.danger : alert.type === 'warning' ? COLORS.warning : COLORS.primaryBlue;
             return (
@@ -200,13 +215,15 @@ export default function Home() {
                 </View>
               </View>
             );
-          })}
+            })}
+          </Animated.View>}
+          </View>
 
           {/* Horizontal Quick Actions */}
           <View style={styles.horizontalActionsContainer}>
             <Pressable style={styles.horizontalActionItem} onPress={() => setQuickRecordsVisible(true)}>
               <Ionicons name="document-text" size={20} color={COLORS.primaryBlue} />
-              <Text style={styles.horizontalActionText}>Quick Records</Text>
+              <Text style={styles.horizontalActionText}>Patient Records</Text>
             </Pressable>
 
             {(() => {
@@ -258,13 +275,6 @@ export default function Home() {
               <Text style={styles.actionSubtitle}>Routine</Text>
             </Pressable>
 
-            <Pressable style={styles.quickActionItem} onPress={() => setStaffVisible(true)}>
-              <View style={[styles.actionIconWrapper, { backgroundColor: COLORS.dangerLight }]}>
-                <Ionicons name="people" size={24} color={COLORS.danger} />
-              </View>
-              <Text style={styles.actionTitle}>Staff</Text>
-              <Text style={styles.actionSubtitle}>Directory</Text>
-            </Pressable>
             <Pressable style={styles.quickActionItem} onPress={() => router.push('/(tabs2)/consultation' as any)}>
               <View style={[styles.actionIconWrapper, { backgroundColor: '#E0F2FE' }]}>
                 <Ionicons name="videocam" size={24} color="#0284C7" />
@@ -297,6 +307,19 @@ export default function Home() {
               </View>
             )}
           />
+        </SafeAreaView>
+      </Modal>
+
+      <Modal visible={!!selectedPatientRecord} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setSelectedPatientRecord(null)}>
+        <SafeAreaView style={styles.modalContainer}>
+          <ModalHeader title="Patient Record" onClose={() => setSelectedPatientRecord(null)} />
+          {selectedPatientRecord && <View style={styles.modalList}>
+            <Text style={styles.listItemTitle}>{selectedPatientRecord.name}</Text>
+            <Text style={styles.listItemSub}>Age: {selectedPatientRecord.age}</Text>
+            <Text style={[styles.listItemSub, { marginTop: 16 }]}>Risk level: {selectedPatientRecord.risk}</Text>
+            <Text style={styles.listItemSub}>Last visit: {selectedPatientRecord.lastVisit}</Text>
+            <Text style={[styles.listItemSub, { marginTop: 16 }]}>Open this patient’s appointments or history to continue their care.</Text>
+          </View>}
         </SafeAreaView>
       </Modal>
 
@@ -335,7 +358,7 @@ export default function Home() {
             renderItem={({ item }) => {
               const riskColor = item.risk === 'High' ? COLORS.danger : item.risk === 'Medium' ? COLORS.warning : COLORS.success;
               return (
-                <View style={styles.listItem}>
+                <Pressable style={styles.listItem} onPress={() => setSelectedPatientRecord(item)}>
                   <View style={styles.listItemInfo}>
                     <Text style={styles.listItemTitle}>{item.name}</Text>
                     <Text style={styles.listItemSub}>Age: {item.age} · Last Visit: {item.lastVisit}</Text>
@@ -343,7 +366,7 @@ export default function Home() {
                   <View style={[styles.riskBadge, { backgroundColor: riskColor + '20' }]}>
                     <Text style={[styles.riskBadgeText, { color: riskColor }]}>{item.risk} Risk</Text>
                   </View>
-                </View>
+                </Pressable>
               )
             }}
           />
@@ -418,7 +441,7 @@ export default function Home() {
           <ModalHeader title="Routine Schedule" onClose={() => setScheduleVisible(false)} />
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={styles.scheduleTopSection}>
-              <Text style={styles.sectionTitle}>Today's Schedule</Text>
+              <Text style={styles.sectionTitle}>Today&apos;s Schedule</Text>
               <Text style={styles.sectionSubtitle}>Your assignments for today</Text>
               {SCHEDULE_DETAILS['Mon']?.length > 0 ? (
                 SCHEDULE_DETAILS['Mon'].map(detail => (
@@ -524,7 +547,12 @@ export default function Home() {
                 <Text style={styles.drawerText}>Quick Chat</Text>
               </Pressable>
 
-              <Pressable style={styles.drawerItem} onPress={closeMenu}>
+              <Pressable style={styles.drawerItem} onPress={() => { closeMenu(); setStaffVisible(true); }}>
+                <Ionicons name="people-outline" size={22} color={COLORS.primaryBlue} style={styles.drawerIcon} />
+                <Text style={styles.drawerText}>Staff Directory</Text>
+              </Pressable>
+
+              <Pressable style={styles.drawerItem} onPress={() => { closeMenu(); router.push('/(tabs2)/profile' as any); }}>
                 <Ionicons name="settings-outline" size={22} color={COLORS.primaryBlue} style={styles.drawerIcon} />
                 <Text style={styles.drawerText}>App Settings</Text>
               </Pressable>
@@ -654,34 +682,68 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
+  greetingCard: {
+    height: '100%',
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: COLORS.primaryBlueLight,
+    borderWidth: 1,
+    borderColor: '#D9E8FF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  greetingIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.white,
+  },
+  greetingCopy: { flex: 1 },
+  greetingTitle: { fontSize: 16, lineHeight: 21, fontWeight: '800', color: COLORS.textDark },
+  greetingSub: { marginTop: 3, fontSize: 11, lineHeight: 15, color: COLORS.textSecondary },
+
+  summarySlot: {
+    height: 150,
+    marginBottom: 14,
+  },
+  alertsPanel: {
+    height: '100%',
+  },
+  alertsHeader: {
+    marginBottom: 8,
+  },
+
   // Alert Cards
   alertCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 10,
     borderRadius: 12,
-    marginBottom: 10,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: COLORS.border,
   },
   alertIconWrapper: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
   alertContent: {
     flex: 1,
   },
   alertTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '800',
     marginBottom: 2,
   },
   alertMessage: {
-    fontSize: 12,
+    fontSize: 11,
     color: COLORS.textDark,
   },
 

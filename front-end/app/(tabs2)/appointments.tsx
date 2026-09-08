@@ -1,665 +1,729 @@
-import React, { useState, useMemo } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  ScrollView,
-  Pressable,
-  Modal,
-  TextInput,
-} from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import { supabase } from '@/lib/supabase';
 
-// ── Warm-white & blue palette ─────────────────────────────────────────────────
-const COLORS = {
-  white: '#FFFFFF',
-  warmCard: '#FFFEFB',
-  canvas: '#FBF7F2',
-  line: '#F0E9E0',
-  primaryBlue: '#246BFD',
-  primaryBlueDeep: '#1A66E8',
-  blueSoft: '#EEF4FF',
-  blueSofter: '#F5F9FF',
-  textDark: '#152B4F',
-  textSecondary: '#75839A',
-  danger: '#E5484D',
-  dangerLight: '#FEF2F2',
-  warning: '#D97706',
-  warningLight: '#FFF7E8',
-  success: '#10B981',
-  successLight: '#ECFDF5',
-  video: '#B4690E',
-  videoLight: '#FFF3DF',
-};
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-type Priority = 'critical' | 'high' | 'medium' | 'low';
-type VisitMode = 'clinic' | 'video';
-
-interface Appointment {
+type Priority = 'low' | 'moderate' | 'high';
+type AppointmentStatus = 'pending' | 'accepted' | 'completed' | 'rescheduled' | 'rejected';
+type Appointment = {
   id: string;
   patientName: string;
   age: number;
-  problem: string;
-  priority: Priority;
-  visitMode: VisitMode;
   time: string;
-  dateKey: string;   // "YYYY-MM-DD"
-  notes: string;
+  visit: 'In-clinic' | 'Video';
+  dateKey: string;
+  status: AppointmentStatus;
   done: boolean;
-}
-
-// ── Configs ───────────────────────────────────────────────────────────────────
-const PRIORITY_CONFIG: Record<Priority, { label: string; color: string; bg: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = {
-  critical: { label: 'Critical', color: COLORS.danger,  bg: COLORS.dangerLight,  icon: 'alert-circle'       },
-  high:     { label: 'High',     color: '#EA580C',       bg: '#FFF0E6',           icon: 'warning'            },
-  medium:   { label: 'Medium',   color: COLORS.warning,  bg: COLORS.warningLight, icon: 'information-circle' },
-  low:      { label: 'Low',      color: COLORS.success,  bg: COLORS.successLight, icon: 'checkmark-circle'   },
+  priority: Priority;
 };
 
-const VISIT_MODE_CONFIG: Record<VisitMode, { label: string; color: string; bg: string; icon: React.ComponentProps<typeof Ionicons>['name'] }> = {
-  clinic: { label: 'In-clinic',  color: COLORS.primaryBlue, bg: COLORS.blueSoft,    icon: 'business'   },
-  video:  { label: 'Online meet', color: COLORS.video,       bg: COLORS.videoLight,  icon: 'videocam'   },
+type TabType = 'requests' | 'upcoming' | 'done';
+
+const C = {
+  blue: '#246BFD',
+  ink: '#152B4F',
+  muted: '#75839A',
+  canvas: '#FBF7F2',
+  card: '#FFFFFF',
+  line: '#E6EAF0',
+  soft: '#EEF4FF',
+  low: '#10B981',
+  moderate: '#D97706',
+  high: '#E5484D',
 };
 
-// ── Date helpers ──────────────────────────────────────────────────────────────
-const DAY_NAMES   = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const key = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+const today = new Date();
+today.setHours(0, 0, 0, 0);
 
-function toKey(d: Date) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-}
+const initial: Appointment[] = [
+  ['Riya Sharma', 34, '09:00 AM', 'In-clinic', 'pending'],
+  ['Arjun Mehta', 52, '09:30 AM', 'In-clinic', 'pending'],
+  ['Priya Das', 28, '10:15 AM', 'Video', 'accepted'],
+  ['Suresh Kumar', 61, '11:00 AM', 'In-clinic', 'accepted'],
+  ['Ananya Bose', 19, '11:30 AM', 'Video', 'completed'],
+].map(([patientName, age, time, visit, status], index) => ({
+  id: String(index + 1),
+  patientName: patientName as string,
+  age: age as number,
+  time: time as string,
+  visit: visit as Appointment['visit'],
+  dateKey: key(today),
+  status: status as AppointmentStatus,
+  done: status === 'completed',
+  priority: 'moderate',
+}));
 
-function buildDays(count = 7) {
-  const today = new Date();
-  today.setHours(0,0,0,0);
-  return Array.from({ length: count }, (_, i) => {
-    const d = new Date(today);
-    d.setDate(today.getDate() + i);
-    return {
-      key: toKey(d),
-      day: DAY_NAMES[d.getDay()],
-      date: d.getDate(),
-      month: MONTH_NAMES[d.getMonth()],
-      isToday: i === 0,
-    };
+const formatDate = (dateKey: string) =>
+  new Date(`${dateKey}T00:00:00`).toLocaleDateString('en-IN', {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
   });
-}
 
-const DAYS = buildDays(7);
-const TODAY_KEY = DAYS[0].key;
-const TOMORROW_KEY = DAYS[1].key;
+const sheetReschedule = {
+  marginTop: 10,
+  minHeight: 46,
+  borderRadius: 13,
+  backgroundColor: '#EEF4FF',
+  alignItems: 'center' as const,
+  justifyContent: 'center' as const,
+  flexDirection: 'row' as const,
+  gap: 8,
+};
 
-// ── Seed data — uses real date keys ──────────────────────────────────────────
-const INITIAL: Appointment[] = [
-  { id:'1',  patientName:'Riya Sharma',   age:34, problem:'Acute Chest Pain',        priority:'critical', visitMode:'clinic', time:'09:00 AM', dateKey: TODAY_KEY,    notes:'Possible MI — ECG ordered',       done:false },
-  { id:'2',  patientName:'Arjun Mehta',   age:52, problem:'Severe Hypertension',     priority:'critical', visitMode:'clinic', time:'09:30 AM', dateKey: TODAY_KEY,    notes:'BP 200/120, medication review',   done:false },
-  { id:'3',  patientName:'Priya Das',     age:28, problem:'Diabetic Ketoacidosis',   priority:'high',     visitMode:'clinic', time:'10:00 AM', dateKey: TODAY_KEY,    notes:'BS 450 mg/dL, insulin drip',      done:false },
-  { id:'4',  patientName:'Suresh Kumar',  age:61, problem:'Post-Op Follow-up',       priority:'high',     visitMode:'video',  time:'10:45 AM', dateKey: TODAY_KEY,    notes:'Appendectomy — Day 3 review',     done:false },
-  { id:'5',  patientName:'Ananya Bose',   age:19, problem:'Severe Asthma Attack',    priority:'high',     visitMode:'clinic', time:'11:15 AM', dateKey: TODAY_KEY,    notes:'Peak flow 40%, nebuliser given',  done:false },
-  { id:'6',  patientName:'Vikram Singh',  age:45, problem:'Lower Back Pain',         priority:'medium',   visitMode:'video',  time:'12:00 PM', dateKey: TODAY_KEY,    notes:'MRI referral pending',            done:false },
-  { id:'7',  patientName:'Meena Joshi',   age:38, problem:'Migraine — Recurrent',    priority:'medium',   visitMode:'video',  time:'12:30 PM', dateKey: TODAY_KEY,    notes:'Third episode this month',        done:false },
-  { id:'8',  patientName:'Raj Patel',     age:55, problem:'Routine Cardiac Checkup', priority:'low',      visitMode:'clinic', time:'02:00 PM', dateKey: TODAY_KEY,    notes:'Annual review, stable',           done:false },
-  { id:'9',  patientName:'Divya Nair',    age:23, problem:'General Health Checkup',  priority:'low',      visitMode:'clinic', time:'02:30 PM', dateKey: TODAY_KEY,    notes:'No specific complaints',          done:false },
-  { id:'10', patientName:'Amit Ghosh',    age:47, problem:'Thyroid Function Review', priority:'low',      visitMode:'video',  time:'09:00 AM', dateKey: TOMORROW_KEY, notes:'TSH results ready',               done:false },
-  { id:'11', patientName:'Sunita Roy',    age:66, problem:'Arthritis Follow-up',     priority:'medium',   visitMode:'clinic', time:'10:30 AM', dateKey: TOMORROW_KEY, notes:'Joint swelling, new X-ray needed', done:false },
-  { id:'12', patientName:'Karan Verma',   age:31, problem:'Allergy Testing',         priority:'low',      visitMode:'video',  time:'11:00 AM', dateKey: TOMORROW_KEY, notes:'Skin-prick test scheduled',        done:false },
-  { id:'13', patientName:'Fatima Khan',   age:43, problem:'Chronic Kidney Disease',  priority:'high',     visitMode:'clinic', time:'09:30 AM', dateKey: DAYS[2].key,  notes:'eGFR declining — nephrology ref', done:false },
-  { id:'14', patientName:'Rohit Jain',    age:27, problem:'Sports Injury Review',    priority:'medium',   visitMode:'video',  time:'11:00 AM', dateKey: DAYS[2].key,  notes:'ACL tear follow-up',              done:false },
-  { id:'15', patientName:'Deepa Reddy',   age:50, problem:'Pre-Surgery Consult',     priority:'critical', visitMode:'clinic', time:'08:30 AM', dateKey: DAYS[3].key,  notes:'Hip replacement prep',            done:false },
-  { id:'16', patientName:'Mohan Tiwari',  age:58, problem:'Lipid Panel Review',      priority:'low',      visitMode:'video',  time:'02:00 PM', dateKey: DAYS[4].key,  notes:'Cholesterol management',          done:false },
-];
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function getInitials(name: string) {
-  return name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase();
-}
-function priorityOrder(p: Priority) {
-  return { critical:0, high:1, medium:2, low:3 }[p];
-}
-
-// ── Small shared components ───────────────────────────────────────────────────
-function VisitModeBadge({ mode, size = 'sm' }: { mode: VisitMode; size?: 'sm' | 'md' }) {
-  const cfg = VISIT_MODE_CONFIG[mode];
-  const isMd = size === 'md';
-  return (
-    <View style={[styles.visitBadge, { backgroundColor: cfg.bg }, isMd && styles.visitBadgeMd]}>
-      <Ionicons name={cfg.icon} size={isMd ? 13 : 11} color={cfg.color} />
-      <Text style={[styles.visitBadgeText, { color: cfg.color }, isMd && styles.visitBadgeTextMd]}>{cfg.label}</Text>
-    </View>
-  );
-}
-
-// ── Screen ────────────────────────────────────────────────────────────────────
 export default function Appointments() {
-  const [appointments, setAppointments] = useState<Appointment[]>(INITIAL);
-  const [selectedDay, setSelectedDay]   = useState(TODAY_KEY);
-  const [filterDone, setFilterDone]     = useState(false);
-  const [selected, setSelected]         = useState<Appointment | null>(null);
-  const [notesText, setNotesText]       = useState('');
+  const router = useRouter();
+  const [appointments, setAppointments] = useState(initial);
+  const [tab, setTab] = useState<TabType>('requests');
+  const [selectedDate, setSelectedDate] = useState(key(today));
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarMonth, setCalendarMonth] = useState(new Date(today));
+  const [selected, setSelected] = useState<Appointment | null>(null);
 
-  const toggle = (id: string) =>
-    setAppointments(prev => prev.map(a => a.id === id ? { ...a, done: !a.done } : a));
+  useEffect(() => {
+    let cancelled = false;
 
-  const openDetail = (a: Appointment) => { setSelected(a); setNotesText(a.notes); };
+    const loadDoctorAppointments = async () => {
+      try {
+        const { data: reqs, error } = await supabase
+          .from('appointment_requests')
+          .select('*, patient:patient_profiles(*)')
+          .order('created_at', { ascending: false });
 
-  const saveNotes = () => {
-    if (!selected) return;
-    setAppointments(prev => prev.map(a => a.id === selected.id ? { ...a, notes: notesText } : a));
+        if (!cancelled && reqs && !error) {
+          const mapped: Appointment[] = reqs.map((r: any) => {
+            const reqDate = r.requested_date || key(today);
+            const rawStatus = (r.status || 'pending').toLowerCase();
+            const status: AppointmentStatus =
+              rawStatus === 'completed' || rawStatus === 'done'
+                ? 'completed'
+                : rawStatus === 'accepted' || rawStatus === 'scheduled'
+                ? 'accepted'
+                : rawStatus === 'rescheduled'
+                ? 'rescheduled'
+                : rawStatus === 'rejected' || rawStatus === 'cancelled'
+                ? 'rejected'
+                : 'pending';
+
+            return {
+              id: r.id,
+              patientName: r.patient?.name || 'Patient',
+              age: r.patient?.age || (r.patient?.blood_group ? 28 : 34),
+              time: r.requested_time || '10:00 AM',
+              visit: r.request_type?.includes('teleconsultation') ? 'Video' : 'In-clinic',
+              dateKey: reqDate,
+              status,
+              done: status === 'completed',
+              priority: 'moderate',
+            };
+          });
+
+          setAppointments(prev => {
+            const existingIds = new Set(mapped.map(m => m.id));
+            const remainingInitial = initial.filter(i => !existingIds.has(i.id));
+            return [...mapped, ...remainingInitial];
+          });
+        }
+      } catch (err) {
+        console.warn('[Doctor Appointments] load error:', err);
+      }
+    };
+
+    loadDoctorAppointments();
+
+    const channel = supabase
+      .channel('doctor_appointments_sync')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'appointment_requests',
+        },
+        () => {
+          loadDoctorAppointments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const isRequest = (item: Appointment) => item.status === 'pending' || item.status === 'rescheduled';
+  const isUpcoming = (item: Appointment) => item.status === 'accepted' && !item.done;
+  const isDone = (item: Appointment) => item.status === 'completed' || item.done;
+
+  const requestsCount = useMemo(
+    () => appointments.filter(isRequest).length,
+    [appointments]
+  );
+  const upcomingCount = useMemo(
+    () => appointments.filter(isUpcoming).length,
+    [appointments]
+  );
+  const doneCount = useMemo(
+    () => appointments.filter(isDone).length,
+    [appointments]
+  );
+
+  const dayAppointments = useMemo(() => {
+    return appointments.filter(item => {
+      if (tab === 'requests') {
+        return isRequest(item);
+      }
+      if (tab === 'upcoming') {
+        const hasDateAppointments = appointments.some(
+          a => isUpcoming(a) && a.dateKey === selectedDate
+        );
+        return isUpcoming(item) && (hasDateAppointments ? item.dateKey === selectedDate : true);
+      }
+      const hasDateDone = appointments.some(
+        a => isDone(a) && a.dateKey === selectedDate
+      );
+      return isDone(item) && (hasDateDone ? item.dateKey === selectedDate : true);
+    });
+  }, [appointments, selectedDate, tab]);
+
+  const visible = useMemo(() => {
+    return [...dayAppointments].sort((a, b) => {
+      const aIsDb = a.id.length > 10;
+      const bIsDb = b.id.length > 10;
+      if (aIsDb && !bIsDb) return -1;
+      if (!aIsDb && bIsDb) return 1;
+      return a.time.localeCompare(b.time);
+    });
+  }, [dayAppointments]);
+
+  const acceptRequest = async (id: string) => {
+    setAppointments(items =>
+      items.map(item => (item.id === id ? { ...item, status: 'accepted', done: false } : item))
+    );
     setSelected(null);
+    try {
+      const { data: updatedReq, error: reqErr } = await supabase
+        .from('appointment_requests')
+        .update({ status: 'accepted', updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select('*')
+        .single();
+
+      if (!reqErr && updatedReq) {
+        let scheduledAt = new Date().toISOString();
+        try {
+          const dPart = updatedReq.requested_date || new Date().toISOString().split('T')[0];
+          const tPart = updatedReq.requested_time || '10:00 AM';
+          scheduledAt = new Date(`${dPart} ${tPart}`).toISOString();
+        } catch (_) {}
+
+        const { data: existingAppt } = await supabase
+          .from('appointments')
+          .select('id')
+          .eq('appointment_request_id', id)
+          .maybeSingle();
+
+        if (!existingAppt) {
+          await supabase.from('appointments').insert({
+            appointment_request_id: id,
+            doctor_id: updatedReq.doctor_id,
+            patient_id: updatedReq.patient_id,
+            scheduled_at: scheduledAt,
+            status: 'scheduled',
+            mode: updatedReq.request_type?.includes('teleconsultation') ? 'video' : 'in_person',
+            booked_by: 'patient',
+            reason: updatedReq.notes || 'Consultation',
+          });
+        }
+      }
+    } catch (e) {
+      console.warn('[Doctor Appointments] approve error:', e);
+    }
   };
 
-  const dayAppts   = useMemo(() => appointments.filter(a => a.dateKey === selectedDay), [appointments, selectedDay]);
-  const doneCount  = dayAppts.filter(a => a.done).length;
-  const totalCount = dayAppts.length;
+  const cancelAppointment = async (id: string) => {
+    setAppointments(items =>
+      items.map(item => (item.id === id ? { ...item, status: 'rejected' } : item))
+    );
+    setSelected(null);
+    try {
+      await supabase
+        .from('appointment_requests')
+        .update({ status: 'rejected', updated_at: new Date().toISOString() })
+        .eq('id', id);
 
-  const visible = dayAppts
-    .filter(a => filterDone ? a.done : !a.done)
-    .sort((a,b) => priorityOrder(a.priority) - priorityOrder(b.priority));
+      await supabase
+        .from('appointments')
+        .update({ status: 'cancelled' })
+        .eq('appointment_request_id', id);
+    } catch (e) {
+      console.warn('[Doctor Appointments] cancel error:', e);
+    }
+  };
 
-  const progress = totalCount > 0 ? doneCount / totalCount : 0;
-  const selectedDate = DAYS.find(day => day.key === selectedDay);
+  const rejectRequest = cancelAppointment;
+
+  const setDone = async (id: string) => {
+    setAppointments(items =>
+      items.map(item => (item.id === id ? { ...item, status: 'completed', done: true } : item))
+    );
+    setSelected(null);
+    try {
+      await supabase
+        .from('appointment_requests')
+        .update({ status: 'completed', updated_at: new Date().toISOString() })
+        .eq('id', id);
+
+      await supabase
+        .from('appointments')
+        .update({ status: 'completed' })
+        .eq('appointment_request_id', id);
+    } catch (e) {
+      console.warn('[Doctor Appointments] complete error:', e);
+    }
+  };
+
+  const setPriority = (id: string, priority: Priority) =>
+    setAppointments(items =>
+      items.map(item => (item.id === id ? { ...item, priority } : item))
+    );
+
+  const reschedule = async (id: string) => {
+    const newTime = selected?.time === '03:00 PM' ? '04:00 PM' : '03:00 PM';
+    setAppointments(items =>
+      items.map(item => (item.id === id ? { ...item, time: newTime, status: 'rescheduled' } : item))
+    );
+    setSelected(null);
+    try {
+      const targetDate = selected?.dateKey || key(today);
+      const proposedIso = new Date(`${targetDate} ${newTime}`).toISOString();
+      await supabase
+        .from('appointment_requests')
+        .update({
+          status: 'rescheduled',
+          proposed_time: proposedIso,
+          requested_time: newTime,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      await supabase
+        .from('appointments')
+        .update({
+          scheduled_at: proposedIso,
+          status: 'rescheduled',
+        })
+        .eq('appointment_request_id', id);
+    } catch (e) {
+      console.warn('[Doctor Appointments] reschedule error:', e);
+    }
+  };
+
+  const prescribe = (item: Appointment) => {
+    setSelected(null);
+    router.push({
+      pathname: '/(tabs2)/new',
+      params: { patientName: item.patientName, patientAge: String(item.age) },
+    } as any);
+  };
+
+  const startConsultation = (item: Appointment) => {
+    setSelected(null);
+    router.push({
+      pathname: '/(tabs2)/consultation' as any,
+      params: {
+        appointmentId: item.id,
+        patientName: item.patientName,
+        patientAge: String(item.age),
+      },
+    });
+  };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top','left','right']}>
-      
-      {/* ── Header ─────────────────────────────────────────────── */}
-      <View style={styles.header}>
-        <View style={styles.headerIcon}><Ionicons name="calendar" size={18} color={COLORS.primaryBlue} /></View>
-        <View style={{ flex: 1, marginLeft: 10 }}>
-          <Text style={styles.headerTitle}>Appointments</Text>
-          <Text style={styles.headerSub}>
-            {totalCount === 0
-              ? 'No appointments this day'
-              : `${doneCount} of ${totalCount} completed`}
-          </Text>
+    <SafeAreaView style={s.screen} edges={['top', 'left', 'right']}>
+      <View style={s.header}>
+        <View>
+          <Text style={s.title}>Appointments</Text>
+          <Text style={s.subtitle}>{formatDate(selectedDate)}</Text>
         </View>
-        <View style={styles.progressPill}>
-          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
-        </View>
+        <Pressable style={s.calendarButton} onPress={() => setCalendarOpen(true)}>
+          <Ionicons name="calendar-outline" size={21} color={C.blue} />
+        </Pressable>
       </View>
 
-      {/* ── Main List Area (Takes up remaining space) ──────────── */}
-      <View style={{ flex: 1 }}>
-        {/* Pending / Done Toggle */}
-        <View style={styles.filterRow}>
-          <Pressable
-            style={[styles.filterBtn, !filterDone && styles.filterBtnActive]}
-            onPress={() => setFilterDone(false)}
-          >
-            <Text style={[styles.filterBtnText, !filterDone && styles.filterBtnTextActive]}>
-              Pending ({dayAppts.filter(a => !a.done).length})
-            </Text>
-          </Pressable>
-          <Pressable
-            style={[styles.filterBtn, filterDone && styles.filterBtnActive]}
-            onPress={() => setFilterDone(true)}
-          >
-            <Text style={[styles.filterBtnText, filterDone && styles.filterBtnTextActive]}>
-              Done ({doneCount})
-            </Text>
-          </Pressable>
-        </View>
+      <View style={s.tabs}>
+        <Tab
+          label={`Requests (${requestsCount})`}
+          active={tab === 'requests'}
+          onPress={() => setTab('requests')}
+        />
+        <Tab
+          label={`Upcoming (${upcomingCount})`}
+          active={tab === 'upcoming'}
+          onPress={() => setTab('upcoming')}
+        />
+        <Tab
+          label={`Done (${doneCount})`}
+          active={tab === 'done'}
+          onPress={() => setTab('done')}
+        />
+      </View>
 
-        {/* Appointment List */}
-        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
-          <View style={styles.listHeading}>
-            <View>
-              <Text style={styles.listTitle}>{filterDone ? 'Completed visits' : 'Upcoming visits'}</Text>
-              <Text style={styles.listSubtitle}>{visible.length} appointment{visible.length === 1 ? '' : 's'} to review</Text>
-            </View>
-            {!filterDone && totalCount > 0 && (
-              <View style={styles.listCountPill}>
-                <Ionicons name="time-outline" size={12} color={COLORS.primaryBlue} />
-                <Text style={styles.listCountText}>{totalCount} total</Text>
-              </View>
-            )}
-          </View>
+      <ScrollView contentContainerStyle={s.list} showsVerticalScrollIndicator={false}>
+        <Text style={s.listCaption}>
+          {tab === 'requests'
+            ? 'Patient requests awaiting action'
+            : tab === 'upcoming'
+            ? 'Confirmed scheduled visits'
+            : 'Completed visits'}
+        </Text>
+        {visible.length === 0 ? (
+          <Empty tab={tab} />
+        ) : (
+          visible.map(item => (
+            <AppointmentCard
+              key={item.id}
+              item={item}
+              tab={tab}
+              onPress={() => setSelected(item)}
+              onPrescribe={() => prescribe(item)}
+              selectedDate={selectedDate}
+            />
+          ))
+        )}
+      </ScrollView>
 
-          {visible.length === 0 && (
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIcon}>
-                <Ionicons
-                  name={filterDone ? 'calendar-outline' : 'checkmark-done-circle'}
-                  size={40}
-                  color={filterDone ? COLORS.textSecondary : COLORS.success}
-                />
-              </View>
-              <Text style={styles.emptyText}>
-                {filterDone
-                  ? 'No completed appointments yet.'
-                  : totalCount === 0
-                    ? 'No appointments scheduled.'
-                    : 'All done for this day! 🎉'}
+      <Modal visible={calendarOpen} transparent animationType="fade" onRequestClose={() => setCalendarOpen(false)}>
+        <CalendarPicker
+          value={selectedDate}
+          month={calendarMonth}
+          onMonthChange={setCalendarMonth}
+          onSelect={date => {
+            setSelectedDate(date);
+            setCalendarOpen(false);
+          }}
+          onClose={() => setCalendarOpen(false)}
+        />
+      </Modal>
+
+      <Modal visible={!!selected} transparent animationType="slide" onRequestClose={() => setSelected(null)}>
+        <View style={s.overlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setSelected(null)} />
+          {selected && (
+            <View style={s.sheet}>
+              <View style={s.handle} />
+              <Text style={s.sheetTitle}>{selected.patientName}</Text>
+              <Text style={s.sheetMeta}>
+                Age {selected.age} • {selected.time} • {selected.visit} • {formatDate(selected.dateKey)}
               </Text>
+
+              {isDone(selected) ? (
+                <>
+                  <Text style={s.fieldLabel}>SET PRIORITY</Text>
+                  <View style={s.priorityRow}>
+                    {(['low', 'moderate', 'high'] as Priority[]).map(priority => (
+                      <Pressable
+                        key={priority}
+                        onPress={() => {
+                          setPriority(selected.id, priority);
+                          setSelected({ ...selected, priority });
+                        }}
+                        style={[
+                          s.priority,
+                          selected.priority === priority && { backgroundColor: C[priority] },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            s.priorityText,
+                            selected.priority === priority && { color: '#fff' },
+                          ]}
+                        >
+                          {priority}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Pressable style={s.primary} onPress={() => prescribe(selected)}>
+                    <Ionicons name="document-text-outline" size={18} color="#fff" />
+                    <Text style={s.primaryText}>Prescribe patient</Text>
+                  </Pressable>
+                </>
+              ) : isUpcoming(selected) ? (
+                <>
+                  {selected.visit === 'Video' && (
+                    <Pressable
+                      style={[s.primary, { backgroundColor: '#0284C7' }]}
+                      onPress={() => startConsultation(selected)}
+                    >
+                      <Ionicons name="videocam-outline" size={19} color="#fff" />
+                      <Text style={s.primaryText}>Start Video Consultation</Text>
+                    </Pressable>
+                  )}
+                  <Pressable style={s.primary} onPress={() => setDone(selected.id)}>
+                    <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />
+                    <Text style={s.primaryText}>Mark as done</Text>
+                  </Pressable>
+                  <Pressable style={s.secondary} onPress={() => prescribe(selected)}>
+                    <Ionicons name="document-text-outline" size={18} color={C.blue} />
+                    <Text style={s.secondaryText}>Prescribe patient</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[s.reschedule, sheetReschedule]}
+                    onPress={() => reschedule(selected.id)}
+                  >
+                    <Ionicons name="time-outline" size={18} color={C.blue} />
+                    <Text style={s.rescheduleText}>
+                      Reschedule to {selected.time === '03:00 PM' ? '04:00 PM' : '03:00 PM'}
+                    </Text>
+                  </Pressable>
+                  <Pressable style={s.dangerBtn} onPress={() => cancelAppointment(selected.id)}>
+                    <Ionicons name="close-circle-outline" size={18} color={C.high} />
+                    <Text style={s.dangerBtnText}>Cancel appointment</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Pressable style={s.primary} onPress={() => acceptRequest(selected.id)}>
+                    <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />
+                    <Text style={s.primaryText}>Accept request</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[s.reschedule, sheetReschedule]}
+                    onPress={() => reschedule(selected.id)}
+                  >
+                    <Ionicons name="time-outline" size={18} color={C.blue} />
+                    <Text style={s.rescheduleText}>
+                      Reschedule to {selected.time === '03:00 PM' ? '04:00 PM' : '03:00 PM'}
+                    </Text>
+                  </Pressable>
+                  <Pressable style={s.dangerBtn} onPress={() => cancelAppointment(selected.id)}>
+                    <Ionicons name="close-circle-outline" size={18} color={C.high} />
+                    <Text style={s.dangerBtnText}>Cancel / Reject request</Text>
+                  </Pressable>
+                </>
+              )}
             </View>
           )}
-
-          <View style={styles.timelineContainer}>
-            {visible.map((appt, index) => {
-              // Map priority to a "Follow-up" / "Upcoming" badge style similar to the image
-              let pillBg = COLORS.blueSoft;
-              let pillColor = COLORS.primaryBlue;
-              let pillLabel = "Upcoming";
-              
-              if (appt.priority === 'critical' || appt.priority === 'high') {
-                pillBg = COLORS.dangerLight;
-                pillColor = COLORS.danger;
-                pillLabel = "Urgent";
-              } else if (appt.visitMode === 'video') {
-                pillBg = COLORS.videoLight;
-                pillColor = COLORS.video;
-                pillLabel = "Online";
-              } else if (appt.priority === 'medium') {
-                pillBg = COLORS.successLight;
-                pillColor = COLORS.success;
-                pillLabel = "Follow-up";
-              }
-
-              if (appt.done) {
-                pillBg = COLORS.line;
-                pillColor = COLORS.textSecondary;
-                pillLabel = "Done";
-              }
-
-              const isLast = index === visible.length - 1;
-
-              return (
-                <Pressable
-                  key={appt.id}
-                  style={({ pressed }) => [styles.timelineRow, appt.done && styles.cardDone, pressed && styles.cardPressed]}
-                  onPress={() => openDetail(appt)}
-                >
-                  <View style={styles.timelineTimeCol}>
-                    <Text style={styles.timelineTimeText}>{appt.time}</Text>
-                  </View>
-                  
-                  <View style={styles.timelineLineCol}>
-                     <View style={[styles.timelineDot, { backgroundColor: pillColor }]} />
-                     {!isLast && <View style={styles.timelineLine} />}
-                  </View>
-                  
-                  <View style={[styles.timelineContentCol, !isLast && styles.timelineContentBorder]}>
-                    <View style={styles.timelineInfo}>
-                      <Text style={[styles.timelineName, appt.done && styles.strikethrough]}>{appt.patientName}</Text>
-                      <Text style={styles.timelineProblem}>{appt.problem}</Text>
-                    </View>
-                    <View style={styles.timelineRight}>
-                      <View style={[styles.timelinePill, { backgroundColor: pillBg }]}>
-                        <Text style={[styles.timelinePillText, { color: pillColor }]}>{pillLabel}</Text>
-                      </View>
-                      <Ionicons name="chevron-forward" size={16} color={COLORS.textSecondary} />
-                    </View>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </View>
-          <View style={{ height: 20 }} />
-        </ScrollView>
-      </View>
-
-      {/* ── 7-Day Calendar Strip (Bottom fixed) ────────────────── */}
-      <View style={styles.calendarSection}>
-        <View style={styles.calendarLabelRow}>
-          <Text style={styles.calendarLabel}>Schedule</Text>
-          <View style={styles.selectedDateChip}>
-            <Ionicons name="calendar-outline" size={12} color={COLORS.primaryBlue} />
-            <Text style={styles.selectedDateLabel}>
-              {selectedDate ? `${selectedDate.day}, ${selectedDate.month} ${selectedDate.date}` : ''}
-            </Text>
-          </View>
-        </View>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.calendarStrip}
-        >
-          {DAYS.map(d => {
-            const isActive = d.key === selectedDay;
-            const dayApptCount = appointments.filter(a => a.dateKey === d.key).length;
-            return (
-              <Pressable
-                key={d.key}
-                onPress={() => { setSelectedDay(d.key); setFilterDone(false); }}
-                style={({ pressed }) => [
-                  styles.dayCell,
-                  isActive && styles.dayCellActive,
-                  pressed && !isActive && styles.dayCellPressed,
-                ]}
-              >
-                <Text style={[styles.dayName, isActive && styles.dayNameActive]}>{d.day}</Text>
-                <Text style={[styles.dayNum, isActive && styles.dayNumActive]}>{d.date}</Text>
-                <Text style={[styles.dayMonth, isActive && styles.dayMonthActive]}>{d.month}</Text>
-                
-                {dayApptCount > 0 && (
-                  <View style={[styles.apptDot, isActive && styles.apptDotActive]} />
-                )}
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </View>
-
-      {/* ── Detail Bottom Sheet ─────────────────────────────────── */}
-      <Modal
-        visible={!!selected}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setSelected(null)}
-      >
-        <View style={styles.modalOverlay}>
-          <Pressable style={styles.modalBackdrop} onPress={() => setSelected(null)} />
-          {selected && (() => {
-            const pc = PRIORITY_CONFIG[selected.priority];
-            return (
-              <View style={styles.sheet}>
-                <View style={styles.handle} />
-                <View style={styles.sheetHeader}>
-                  <View style={[styles.sheetAvatar, { backgroundColor: pc.bg }]}>
-                    <Text style={[styles.sheetAvatarText, { color: pc.color }]}>
-                      {getInitials(selected.patientName)}
-                    </Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.sheetName}>{selected.patientName}</Text>
-                    <Text style={styles.sheetAge}>Age {selected.age} · {selected.time}</Text>
-                  </View>
-                  <View style={[styles.badge, { backgroundColor: pc.bg }]}>
-                    <Ionicons name={pc.icon} size={11} color={pc.color} />
-                    <Text style={[styles.badgeText, { color: pc.color }]}>{pc.label}</Text>
-                  </View>
-                </View>
-
-                <View style={styles.sheetSection}>
-                  <Text style={styles.sheetLabel}>Problem</Text>
-                  <Text style={styles.sheetValue}>{selected.problem}</Text>
-                </View>
-
-                <View style={styles.sheetSection}>
-                  <Text style={styles.sheetLabel}>Visit</Text>
-                  <VisitModeBadge mode={selected.visitMode} size="md" />
-                </View>
-
-                <View style={styles.sheetSection}>
-                  <Text style={styles.sheetLabel}>Priority</Text>
-                  <View style={{ flexDirection: 'row', gap: 8 }}>
-                    {(['critical', 'high', 'medium', 'low'] as Priority[]).map(p => {
-                      const cfg = PRIORITY_CONFIG[p];
-                      const isSelected = selected.priority === p;
-                      return (
-                        <Pressable 
-                          key={p} 
-                          onPress={() => {
-                            setAppointments(prev => prev.map(a => a.id === selected.id ? { ...a, priority: p } : a));
-                            setSelected({ ...selected, priority: p });
-                          }}
-                          style={[styles.badge, { backgroundColor: isSelected ? cfg.color : cfg.bg, borderWidth: 1, borderColor: cfg.color, paddingVertical: 6, paddingHorizontal: 10 }]}
-                        >
-                          <Text style={[styles.badgeText, { color: isSelected ? COLORS.white : cfg.color }]}>{cfg.label}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
-
-                <View style={styles.sheetSection}>
-                  <Text style={styles.sheetLabel}>Doctor&apos;s Notes</Text>
-                  <TextInput
-                    style={styles.notesInput}
-                    multiline
-                    value={notesText}
-                    onChangeText={setNotesText}
-                    placeholder="Add clinical notes…"
-                    placeholderTextColor={COLORS.textSecondary}
-                  />
-                </View>
-
-                <View style={styles.sheetActions}>
-                  <Pressable
-                    style={({ pressed }) => [styles.actionBtn, { backgroundColor: selected.done ? COLORS.dangerLight : COLORS.successLight }, pressed && styles.actionBtnPressed]}
-                    onPress={() => { toggle(selected.id); setSelected(null); }}
-                  >
-                    <Ionicons
-                      name={selected.done ? 'close-circle' : 'checkmark-circle'}
-                      size={20}
-                      color={selected.done ? COLORS.danger : COLORS.success}
-                    />
-                    <Text style={[styles.actionBtnText, { color: selected.done ? COLORS.danger : COLORS.success }]}>
-                      {selected.done ? 'Mark Pending' : 'Mark as Done'}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    style={({ pressed }) => [styles.actionBtn, styles.saveBtn, pressed && styles.actionBtnPressed]}
-                    onPress={saveNotes}
-                  >
-                    <Ionicons name="save-outline" size={20} color={COLORS.white} />
-                    <Text style={[styles.actionBtnText, { color: COLORS.white }]}>Save Notes</Text>
-                  </Pressable>
-                </View>
-              </View>
-            );
-          })()}
         </View>
       </Modal>
     </SafeAreaView>
   );
 }
 
-// ── Styles ────────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.canvas },
+function Tab({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={[s.tab, active && s.tabActive]}>
+      <Text style={[s.tabText, active && s.tabTextActive]}>{label}</Text>
+    </Pressable>
+  );
+}
 
-  // Header
-  header: {
-    paddingHorizontal: 20, paddingTop: 14, paddingBottom: 12,
-    flexDirection: 'row', alignItems: 'center',
-  },
-  headerIcon: {
-    width: 36, height: 36, borderRadius: 12,
-    backgroundColor: COLORS.blueSoft, alignItems: 'center', justifyContent: 'center',
-  },
-  headerTitle: { fontSize: 22, fontWeight: '800', color: COLORS.textDark },
-  headerSub: { fontSize: 12, color: COLORS.textSecondary, marginTop: 1 },
-  progressPill: { width: 74, height: 8, borderRadius: 4, backgroundColor: COLORS.line, overflow: 'hidden' },
-  progressFill: { height: '100%', backgroundColor: COLORS.primaryBlue, borderRadius: 4 },
+function Empty({ tab }: { tab: TabType }) {
+  return (
+    <View style={s.empty}>
+      <Ionicons
+        name={
+          tab === 'requests'
+            ? 'mail-unread-outline'
+            : tab === 'upcoming'
+            ? 'calendar-outline'
+            : 'checkmark-done-outline'
+        }
+        size={42}
+        color={C.muted}
+      />
+      <Text style={s.emptyText}>
+        {tab === 'requests'
+          ? 'No pending appointment requests.'
+          : tab === 'upcoming'
+          ? 'No upcoming appointments on this date.'
+          : 'No completed appointments yet.'}
+      </Text>
+    </View>
+  );
+}
 
-  // Filter toggle
-  filterRow: {
-    flexDirection: 'row', marginHorizontal: 16, marginBottom: 12,
-    backgroundColor: COLORS.blueSoft, borderRadius: 14, padding: 4,
-  },
-  filterBtn:           { flex: 1, paddingVertical: 9, borderRadius: 11, alignItems: 'center' },
-  filterBtnActive:     { backgroundColor: COLORS.primaryBlue, shadowColor: COLORS.primaryBlue, shadowOpacity: 0.2, shadowOffset: { width: 0, height: 3 }, shadowRadius: 6, elevation: 3 },
-  filterBtnText:       { fontSize: 13, fontWeight: '700', color: COLORS.textSecondary },
-  filterBtnTextActive: { color: COLORS.white },
+function AppointmentCard({
+  item,
+  tab,
+  onPress,
+  onPrescribe,
+  selectedDate,
+}: {
+  item: Appointment;
+  tab: TabType;
+  onPress: () => void;
+  onPrescribe: () => void;
+  selectedDate?: string;
+}) {
+  return (
+    <Pressable onPress={onPress} style={s.card}>
+      <View style={s.time}>
+        <Text style={s.timeText}>{item.time}</Text>
+      </View>
+      <View style={s.cardInfo}>
+        <Text style={s.name}>{item.patientName}</Text>
+        <Text style={s.meta}>
+          Age {item.age} • {item.visit}
+          {item.dateKey && selectedDate && item.dateKey !== selectedDate
+            ? ` • ${formatDate(item.dateKey)}`
+            : ''}
+        </Text>
+        {tab === 'done' ? (
+          <View style={[s.priorityBadge, { backgroundColor: `${C[item.priority]}18` }]}>
+            <Text style={[s.priorityBadgeText, { color: C[item.priority] }]}>
+              {item.priority} priority
+            </Text>
+          </View>
+        ) : tab === 'requests' ? (
+          <View style={[s.priorityBadge, { backgroundColor: '#FEF3C7' }]}>
+            <Text style={[s.priorityBadgeText, { color: '#D97706' }]}>New Request</Text>
+          </View>
+        ) : (
+          <View style={[s.priorityBadge, { backgroundColor: '#EFF6FF' }]}>
+            <Text style={[s.priorityBadgeText, { color: C.blue }]}>Confirmed</Text>
+          </View>
+        )}
+      </View>
+      {tab === 'done' ? (
+        <Pressable onPress={onPrescribe} style={s.rxButton}>
+          <Ionicons name="document-text-outline" size={17} color={C.blue} />
+          <Text style={s.rxText}>Prescribe</Text>
+        </Pressable>
+      ) : (
+        <Ionicons name="chevron-forward" size={19} color={C.muted} />
+      )}
+    </Pressable>
+  );
+}
 
-  // List
-  list: { paddingHorizontal: 16 },
-  listHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, paddingHorizontal: 2 },
-  listTitle: { fontSize: 16, fontWeight: '800', color: COLORS.textDark },
-  listSubtitle: { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-  listCountPill: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: COLORS.blueSoft, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 99,
-  },
-  listCountText: { fontSize: 11, fontWeight: '700', color: COLORS.primaryBlue },
+function CalendarPicker({
+  value,
+  month,
+  onMonthChange,
+  onSelect,
+  onClose,
+}: {
+  value: string;
+  month: Date;
+  onMonthChange: (date: Date) => void;
+  onSelect: (date: string) => void;
+  onClose: () => void;
+}) {
+  const first = new Date(month.getFullYear(), month.getMonth(), 1);
+  const days = new Date(month.getFullYear(), month.getMonth() + 1, 0).getDate();
+  const cells = Array.from({ length: first.getDay() + days }, (_, index) =>
+    index < first.getDay() ? null : index - first.getDay() + 1
+  );
+  const change = (amount: number) =>
+    onMonthChange(new Date(month.getFullYear(), month.getMonth() + amount, 1));
 
-  emptyState: { alignItems: 'center', marginTop: 48, gap: 12 },
-  emptyIcon: { width: 68, height: 68, borderRadius: 22, backgroundColor: COLORS.blueSoft, alignItems: 'center', justifyContent: 'center' },
-  emptyText:  { fontSize: 15, color: COLORS.textSecondary, textAlign: 'center' },
+  return (
+    <View style={s.calendarOverlay}>
+      <View style={s.calendarModal}>
+        <View style={s.monthRow}>
+          <Pressable onPress={() => change(-1)}>
+            <Ionicons name="chevron-back" size={21} color={C.ink} />
+          </Pressable>
+          <Text style={s.monthTitle}>
+            {MONTHS[month.getMonth()]} {month.getFullYear()}
+          </Text>
+          <Pressable onPress={() => change(1)}>
+            <Ionicons name="chevron-forward" size={21} color={C.ink} />
+          </Pressable>
+        </View>
+        <View style={s.weekRow}>
+          {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((day, i) => (
+            <Text key={`${day}${i}`} style={s.weekday}>
+              {day}
+            </Text>
+          ))}
+        </View>
+        <View style={s.grid}>
+          {cells.map((day, index) => {
+            const active =
+              !!day &&
+              key(new Date(month.getFullYear(), month.getMonth(), day)) === value;
+            return (
+              <Pressable
+                key={index}
+                disabled={!day}
+                onPress={() =>
+                  day && onSelect(key(new Date(month.getFullYear(), month.getMonth(), day)))
+                }
+                style={[s.day, active && s.daySelected]}
+              >
+                <Text style={[s.dayText, active && { color: '#fff' }]}>{day || ''}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Pressable onPress={onClose} style={s.closeCalendar}>
+          <Text style={s.closeCalendarText}>Close</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
 
-  // Minimal Cards
-  minimalCard: {
-    flexDirection: 'row', backgroundColor: COLORS.warmCard, borderRadius: 16,
-    marginBottom: 10, borderWidth: 1, borderColor: COLORS.line, overflow: 'hidden',
-    shadowColor: '#8A6E4E', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 6, elevation: 1,
-  },
-  cardPressed: { transform: [{ scale: 0.98 }], opacity: 0.9 },
-  cardDone:    { opacity: 0.5 },
-  stripe:      { width: 4 },
-  minimalCardContent: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14 },
-  minimalCardLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 },
-  minimalCardTime: { fontSize: 13, fontWeight: '800', color: COLORS.textSecondary, minWidth: 60 },
-  minimalCardName: { fontSize: 15, fontWeight: '700', color: COLORS.textDark, flex: 1 },
-  strikethrough:{ textDecorationLine: 'line-through', color: COLORS.textSecondary },
-
-  badge:     { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 8, paddingVertical: 4, borderRadius: 8 },
-  badgeText: { fontSize: 11, fontWeight: '700' },
-
-  visitBadge:     { flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 7, paddingVertical: 3, borderRadius: 8 },
-  visitBadgeMd:   { paddingHorizontal: 9, paddingVertical: 5, borderRadius: 9, gap: 4 },
-  visitBadgeText:     { fontSize: 10, fontWeight: '700' },
-  visitBadgeTextMd:   { fontSize: 11 },
-
-  // Calendar strip (bottom)
-  calendarSection: { paddingVertical: 12, backgroundColor: COLORS.white, borderTopWidth: 1, borderTopColor: COLORS.line },
-  calendarLabelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, marginBottom: 12 },
-  calendarLabel: { fontSize: 14, fontWeight: '800', color: COLORS.textDark },
-  selectedDateChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    backgroundColor: COLORS.blueSoft, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99,
-  },
-  selectedDateLabel: { fontSize: 11, fontWeight: '700', color: COLORS.primaryBlue },
-  calendarStrip: { paddingHorizontal: 16, gap: 8 },
-  dayCell: {
-    width: 52,
-    height: 72,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.line,
-    backgroundColor: COLORS.warmCard,
-  },
-  dayCellPressed: { transform: [{ scale: 0.96 }], opacity: 0.85 },
-  dayCellActive: {
-    backgroundColor: COLORS.primaryBlue, borderColor: COLORS.primaryBlue,
-    shadowColor: COLORS.primaryBlue, shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2, shadowRadius: 8, elevation: 3,
-  },
-  dayName:       { fontSize: 10, fontWeight: '700', color: COLORS.textSecondary, marginBottom: 2 },
-  dayNameActive: { color: 'rgba(255,255,255,0.8)' },
-  dayNum:        { fontSize: 16, fontWeight: '800', color: COLORS.textDark },
-  dayNumActive:  { color: COLORS.white },
-  dayMonth:      { fontSize: 9, fontWeight: '600', color: COLORS.textSecondary, marginTop: 2 },
-  dayMonthActive:{ color: 'rgba(255,255,255,0.75)' },
-  apptDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.primaryBlue, marginTop: 4 },
-  apptDotActive: { backgroundColor: COLORS.white },
-
-  // Modal sheet
-  modalOverlay:  { flex: 1, justifyContent: 'flex-end' },
-  modalBackdrop: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(21,43,79,0.45)' },
-  sheet: {
-    backgroundColor: COLORS.warmCard, borderTopLeftRadius: 28, borderTopRightRadius: 28,
-    padding: 24, paddingBottom: 40,
-  },
-  handle: { width: 40, height: 4, borderRadius: 2, backgroundColor: COLORS.line, alignSelf: 'center', marginBottom: 20 },
-
-  sheetHeader:     { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 },
-  sheetAvatar:     { width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center' },
-  sheetAvatarText: { fontSize: 18, fontWeight: '800' },
-  sheetName:       { fontSize: 18, fontWeight: '800', color: COLORS.textDark },
-  sheetAge:        { fontSize: 12, color: COLORS.textSecondary, marginTop: 2 },
-
-  sheetSection: { marginBottom: 16 },
-  sheetLabel:   { fontSize: 11, fontWeight: '700', color: COLORS.textSecondary, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 },
-  sheetValue:   { fontSize: 16, fontWeight: '600', color: COLORS.textDark },
-
-  notesInput: {
-    borderWidth: 1, borderColor: COLORS.line, borderRadius: 14, padding: 12,
-    minHeight: 90, fontSize: 14, color: COLORS.textDark,
-    textAlignVertical: 'top', backgroundColor: COLORS.white,
-  },
-
-  sheetActions:   { flexDirection: 'row', gap: 12, marginTop: 8 },
-  actionBtn:      { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, borderRadius: 16 },
-  actionBtnPressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
-  saveBtn:        { backgroundColor: COLORS.primaryBlue },
-  actionBtnText:  { fontSize: 14, fontWeight: '700' },
-  
-  // Timeline Styles
-  timelineContainer: {
-    backgroundColor: COLORS.white,
-    borderRadius: 20,
-    paddingVertical: 10,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 10, elevation: 2,
-    borderWidth: 1, borderColor: COLORS.line,
-  },
-  timelineRow: {
-    flexDirection: 'row',
-  },
-  timelineTimeCol: {
-    width: 80,
-    paddingVertical: 20,
-    alignItems: 'center',
-  },
-  timelineTimeText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: COLORS.primaryBlueDeep,
-  },
-  timelineLineCol: {
-    width: 20,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  timelineDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginTop: 22,
-    zIndex: 2,
-  },
-  timelineLine: {
-    position: 'absolute',
-    top: 32,
-    bottom: -22,
-    width: 2,
-    backgroundColor: COLORS.line,
-    zIndex: 1,
-  },
-  timelineContentCol: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 18,
-    paddingRight: 16,
-    paddingLeft: 12,
-  },
-  timelineContentBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.line,
-  },
-  timelineInfo: {
-    flex: 1,
-  },
-  timelineName: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: COLORS.textDark,
-    marginBottom: 4,
-  },
-  timelineProblem: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
-    fontWeight: '500',
-  },
-  timelineRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  timelinePill: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  timelinePillText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
+const s = StyleSheet.create({
+  screen: { flex: 1, backgroundColor: C.canvas },
+  header: { padding: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  title: { fontSize: 23, fontWeight: '800', color: C.ink },
+  subtitle: { marginTop: 3, color: C.muted, fontSize: 13 },
+  calendarButton: { padding: 11, borderRadius: 13, backgroundColor: C.soft },
+  tabs: { flexDirection: 'row', marginHorizontal: 16, padding: 4, borderRadius: 14, backgroundColor: C.soft, gap: 4 },
+  tab: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
+  tabActive: { backgroundColor: C.blue },
+  tabText: { fontSize: 12, fontWeight: '700', color: C.muted },
+  tabTextActive: { color: '#fff' },
+  list: { padding: 20, gap: 10 },
+  listCaption: { color: C.muted, fontSize: 12, fontWeight: '700', marginBottom: 2 },
+  card: { minHeight: 84, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 13, borderRadius: 16, backgroundColor: C.card, borderWidth: 1, borderColor: C.line },
+  time: { width: 64, alignItems: 'center' },
+  timeText: { color: C.blue, fontWeight: '800', fontSize: 12 },
+  cardInfo: { flex: 1 },
+  name: { color: C.ink, fontSize: 15, fontWeight: '800' },
+  meta: { color: C.muted, marginTop: 5, fontSize: 12 },
+  priorityBadge: { alignSelf: 'flex-start', borderRadius: 8, paddingHorizontal: 7, paddingVertical: 3, marginTop: 7 },
+  priorityBadgeText: { textTransform: 'capitalize', fontSize: 10, fontWeight: '800' },
+  rxButton: { flexDirection: 'row', alignItems: 'center', gap: 4, padding: 8, borderRadius: 10, backgroundColor: C.soft },
+  rxText: { color: C.blue, fontWeight: '800', fontSize: 11 },
+  empty: { alignItems: 'center', gap: 12, marginTop: 80 },
+  emptyText: { color: C.muted, fontSize: 14 },
+  overlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: '#0006' },
+  sheet: { backgroundColor: C.card, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 22, paddingBottom: 38 },
+  handle: { width: 38, height: 4, borderRadius: 3, backgroundColor: C.line, alignSelf: 'center', marginBottom: 18 },
+  sheetTitle: { fontSize: 20, fontWeight: '800', color: C.ink },
+  sheetMeta: { color: C.muted, marginTop: 6 },
+  fieldLabel: { fontSize: 10, letterSpacing: 1, color: C.muted, fontWeight: '800', marginTop: 24, marginBottom: 9 },
+  priorityRow: { flexDirection: 'row', gap: 8 },
+  priority: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10, backgroundColor: C.soft },
+  priorityText: { textTransform: 'capitalize', color: C.ink, fontWeight: '800', fontSize: 12 },
+  primary: { marginTop: 20, minHeight: 48, borderRadius: 13, backgroundColor: C.blue, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  primaryText: { color: '#fff', fontWeight: '800', fontSize: 14 },
+  secondary: { marginTop: 10, minHeight: 46, borderRadius: 13, backgroundColor: C.soft, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  secondaryText: { color: C.blue, fontWeight: '800', fontSize: 13 },
+  reschedule: { marginTop: 10, minHeight: 46, borderRadius: 13, backgroundColor: '#EEF4FF', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  rescheduleText: { color: C.blue, fontWeight: '800', fontSize: 13 },
+  dangerBtn: { marginTop: 10, minHeight: 46, borderRadius: 13, backgroundColor: '#FEF2F2', alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8 },
+  dangerBtnText: { color: C.high, fontWeight: '800', fontSize: 13 },
+  calendarOverlay: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: '#0006' },
+  calendarModal: { backgroundColor: C.card, borderRadius: 20, padding: 18 },
+  monthRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  monthTitle: { color: C.ink, fontSize: 16, fontWeight: '800' },
+  weekRow: { flexDirection: 'row' },
+  weekday: { width: '14.285%', textAlign: 'center', color: C.muted, fontSize: 11, fontWeight: '800', marginBottom: 9 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap' },
+  day: { width: '14.285%', aspectRatio: 1, alignItems: 'center', justifyContent: 'center', borderRadius: 18 },
+  daySelected: { backgroundColor: C.blue },
+  dayText: { color: C.ink, fontSize: 13, fontWeight: '700' },
+  closeCalendar: { marginTop: 15, alignItems: 'center', paddingVertical: 10 },
+  closeCalendarText: { color: C.blue, fontWeight: '800' },
 });

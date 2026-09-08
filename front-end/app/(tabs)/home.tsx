@@ -1,80 +1,80 @@
 import { AppHeader } from '@/components/app-header';
-import { useSideMenu } from '@/components/side-menu-context';
 import { useNotifications } from '@/components/notification-context';
+import { useSideMenu } from '@/components/side-menu-context';
 import { useUser } from '@clerk/expo';
-import { useRouter } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import React, { useState, useEffect, useRef } from 'react';
+import { BlurView } from 'expo-blur';
+import { useRouter } from 'expo-router';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
   ScrollView,
-  TextInput,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { BlurView } from 'expo-blur';
 
 const { width } = Dimensions.get('window');
 
 // ─── Colour tokens ────────────────────────────────────────────────────────────
 const C = {
   // Backgrounds
-  bgLight:  '#F0FAFA',
-  bgWhite:  '#FFFFFF',
+  bgLight: '#F0FAFA',
+  bgWhite: '#FFFFFF',
 
   // Medical teal / cyan
-  teal1:   '#00B5AD',
+  teal1: '#00B5AD',
   tealDim: '#E0F7F6',
   tealMid: '#B2EBEA',
 
   // Medical blue
-  blue1:   '#1976D2',
+  blue1: '#1976D2',
   blueDim: '#E3F2FD',
 
   // Green
-  green1:  '#2E7D32',
-  greenDim:'#E8F5E9',
+  green1: '#2E7D32',
+  greenDim: '#E8F5E9',
 
   // Red / alert
-  red1:    '#E53935',
-  redDim:  '#FFEBEE',
+  red1: '#E53935',
+  redDim: '#FFEBEE',
 
   // Amber
-  amber1:  '#F57C00',
-  amberDim:'#FFF3E0',
+  amber1: '#F57C00',
+  amberDim: '#FFF3E0',
 
   // Purple
   purple1: '#7B1FA2',
-  purpleDim:'#F3E5F5',
+  purpleDim: '#F3E5F5',
 
   // Glass surfaces (light)
   glassBorder: 'rgba(0,181,173,0.18)',
-  glassBg:     'rgba(255,255,255,0.72)',
+  glassBg: 'rgba(255,255,255,0.72)',
 
   // Text
-  textPrimary:   '#0D3349',
+  textPrimary: '#0D3349',
   textSecondary: '#4A7080',
-  textMuted:     '#8AACBA',
+  textMuted: '#8AACBA',
 };
 
 // ─── Pulse Dot ────────────────────────────────────────────────────────────────
 function PulseDot({ color }: { color: string }) {
-  const scale   = useRef(new Animated.Value(1)).current;
+  const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(0.6)).current;
   useEffect(() => {
     Animated.loop(
       Animated.sequence([
         Animated.parallel([
-          Animated.timing(scale,   { toValue: 1.7, duration: 900, useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0,   duration: 900, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1.7, duration: 900, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0, duration: 900, useNativeDriver: true }),
         ]),
         Animated.parallel([
-          Animated.timing(scale,   { toValue: 1,   duration: 0,   useNativeDriver: true }),
-          Animated.timing(opacity, { toValue: 0.6, duration: 0,   useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1, duration: 0, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.6, duration: 0, useNativeDriver: true }),
         ]),
       ]),
     ).start();
@@ -103,30 +103,18 @@ function GlassCard({ children, style, onPress }: {
   );
 }
 
-// ─── Stat Badge ───────────────────────────────────────────────────────────────
-function StatBadge({ label, value, unit, color }: { label: string; value: string; unit: string; color: string }) {
-  return (
-    <View style={styles.statBadge}>
-      <Text style={[styles.statValue, { color }]}>{value}
-        <Text style={styles.statUnit}> {unit}</Text>
-      </Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
 // ─── Home ─────────────────────────────────────────────────────────────────────
 export default function Home() {
-  const { openMenu }          = useSideMenu();
+  const { openMenu } = useSideMenu();
   const { openNotifications } = useNotifications();
-  const { user }              = useUser();
-  const router                = useRouter();
+  const { user } = useUser();
+  const router = useRouter();
   const [unreadNotifications, setUnreadNotifications] = useState(3);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const [showWelcome, setShowWelcome] = useState(true);
   const scrollRef = useRef<ScrollView>(null);
-  const fadeAnim  = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(28)).current;
 
   const userName = user?.firstName || user?.fullName || 'User';
@@ -137,21 +125,21 @@ export default function Home() {
       title: 'How are you feeling today?', sub: 'Your health journey starts here',
       accent: C.teal1, bg: 'rgba(0,212,200,0.10)', icon: 'heart-outline' as const,
     }] : []),
-    { id: 'alert',  label: '⚠️  Health Alert',      title: 'Complete Health Assessment', sub: 'Review your recent risk indicators', accent: C.red1,    bg: 'rgba(255,82,82,0.10)',   icon: 'warning-outline' as const },
-    { id: 'report', label: '🔔  Notification',        title: 'Your Report is Ready',      sub: 'Tap to view your latest lab results', accent: C.blue1,  bg: 'rgba(41,121,255,0.10)',  icon: 'document-text-outline' as const },
-    { id: 'update', label: '📅  Updates',             title: 'New Features Available',     sub: "Discover what's new in MediQuick",  accent: C.amber1, bg: 'rgba(255,215,64,0.10)', icon: 'sparkles-outline' as const },
+    { id: 'alert', label: '⚠️  Health Alert', title: 'Complete Health Assessment', sub: 'Review your recent risk indicators', accent: C.red1, bg: 'rgba(255,82,82,0.10)', icon: 'warning-outline' as const },
+    { id: 'report', label: '🔔  Notification', title: 'Your Report is Ready', sub: 'Tap to view your latest lab results', accent: C.blue1, bg: 'rgba(41,121,255,0.10)', icon: 'document-text-outline' as const },
+    { id: 'update', label: '📅  Updates', title: 'New Features Available', sub: "Discover what's new in MediQuick", accent: C.amber1, bg: 'rgba(255,215,64,0.10)', icon: 'sparkles-outline' as const },
   ];
 
   const quickActions = [
-    { id: 'appointments', icon: 'calendar-outline' as const,     label: 'Appointments',   sub: 'Schedule a visit', color: C.teal1,   bg: C.tealDim   },
-    { id: 'consultation', icon: 'videocam-outline' as const,      label: 'Consult Doctor', sub: 'Connect now',      color: C.blue1,   bg: C.blueDim   },
-    { id: 'pharmacy',     icon: 'medkit-outline' as const,        label: 'Pharmacy',       sub: 'Medicines delivered', color: C.green1, bg: C.greenDim },
-    { id: 'hospital',     icon: 'location-outline' as const,      label: 'Nearby Hospital',sub: 'Emergency & visits', color: C.purple1, bg: C.purpleDim},
+    { id: 'appointments', icon: 'calendar-outline' as const, label: 'Appointments', sub: 'Schedule a visit', color: C.teal1, bg: C.tealDim },
+    { id: 'consultation', icon: 'videocam-outline' as const, label: 'Consult Doctor', sub: 'Connect now', color: C.blue1, bg: C.blueDim },
+    { id: 'pharmacy', icon: 'medkit-outline' as const, label: 'Pharmacy', sub: 'Medicines delivered', color: C.green1, bg: C.greenDim },
+    { id: 'hospital', icon: 'location-outline' as const, label: 'Nearby Hospital', sub: 'Emergency & visits', color: C.purple1, bg: C.purpleDim },
   ];
 
   useEffect(() => {
     Animated.parallel([
-      Animated.timing(fadeAnim,  { toValue: 1, duration: 700, useNativeDriver: true }),
+      Animated.timing(fadeAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 700, useNativeDriver: true }),
     ]).start();
     const t = setTimeout(() => { setShowWelcome(false); }, 5000);
@@ -205,15 +193,6 @@ export default function Home() {
                 <Text style={[styles.statusTxt, { color: C.green1 }]}>Healthy</Text>
               </View>
             </View>
-            <View style={styles.vitalsRow}>
-              <StatBadge label="Heart Rate" value="72"  unit="bpm" color={C.red1}    />
-              <View style={styles.vDiv} />
-              <StatBadge label="SpO₂"       value="98"  unit="%"   color={C.teal1}   />
-              <View style={styles.vDiv} />
-              <StatBadge label="Steps"       value="6.2" unit="k"   color={C.green1}  />
-              <View style={styles.vDiv} />
-              <StatBadge label="Sleep"       value="7.4" unit="h"   color={C.purple1} />
-            </View>
           </GlassCard>
 
           {/* ── Carousel ── */}
@@ -234,7 +213,7 @@ export default function Home() {
                 <GlassCard
                   key={item.id}
                   style={[styles.carouselCard, { width: width - 48, backgroundColor: item.bg }]}
-                  onPress={() => {}}
+                  onPress={() => { }}
                 >
                   <View style={styles.carouselRow}>
                     <View style={[styles.carouselIcon, { borderColor: item.accent }]}>
@@ -264,20 +243,23 @@ export default function Home() {
           </View>
 
           {/* ── Search ── */}
-          <GlassCard style={styles.searchWrap}>
-            <Ionicons name="search-outline" size={20} color={C.textSecondary} style={{ marginRight: 10 }} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search doctors, services, hospitals…"
-              placeholderTextColor={C.textMuted}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <Ionicons name="close-circle" size={18} color={C.textSecondary} />
-              </TouchableOpacity>
-            )}
+          <GlassCard style={styles.searchCard}>
+            <View style={styles.searchInner}>
+              <Ionicons name="search-outline" size={20} color={C.textSecondary} style={{ marginRight: 10 }} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search doctors, services, hospitals…"
+                placeholderTextColor={C.textMuted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Ionicons name="close-circle" size={20} color={C.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </View>
           </GlassCard>
 
           {/* ── Quick Actions ── */}
@@ -291,9 +273,9 @@ export default function Home() {
 
           <View style={styles.grid}>
             {quickActions.map(a => (
-              <GlassCard 
-                key={a.id} 
-                style={styles.actionCard} 
+              <GlassCard
+                key={a.id}
+                style={styles.actionCard}
                 onPress={() => router.push(`/(tabs)/${a.id}` as any)}
               >
                 <View style={styles.actionTop}>
@@ -321,7 +303,7 @@ export default function Home() {
           </View>
 
           {/* Risk card */}
-          <GlassCard style={styles.riskCard} onPress={() => {}}>
+          <GlassCard style={styles.riskCard} onPress={() => { }}>
             <View style={styles.riskRow}>
               <View style={[styles.riskIconBg, { backgroundColor: C.redDim }]}>
                 <Ionicons name="warning-outline" size={24} color={C.red1} />
@@ -349,7 +331,7 @@ export default function Home() {
           </GlassCard>
 
           {/* AI care card */}
-          <GlassCard style={styles.aiCard} onPress={() => {}}>
+          <GlassCard style={styles.aiCard} onPress={() => { }}>
             <View style={styles.riskRow}>
               <View style={[styles.riskIconBg, { backgroundColor: C.purpleDim, width: 52, height: 52, borderRadius: 16 }]}>
                 <Ionicons name="sparkles-outline" size={26} color={C.purple1} />
@@ -379,7 +361,7 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: C.bgLight },
 
   // Light gradient background layers
-  bgLight:   { ...StyleSheet.absoluteFillObject, backgroundColor: '#F0FAFA' },
+  bgLight: { ...StyleSheet.absoluteFillObject, backgroundColor: '#F0FAFA' },
   bgTealTop: { position: 'absolute', top: 0, left: 0, right: 0, height: 220, backgroundColor: 'rgba(0,181,173,0.12)', borderBottomLeftRadius: 40, borderBottomRightRadius: 40 },
 
   header: { backgroundColor: 'transparent' },
@@ -387,71 +369,66 @@ const styles = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingBottom: 100, paddingTop: 4 },
 
   // glass cards — light frosted
-  glassCard:  { borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: C.glassBorder, backgroundColor: C.glassBg, marginBottom: 14 },
+  glassCard: { borderRadius: 20, overflow: 'hidden', borderWidth: 1, borderColor: C.glassBorder, backgroundColor: C.glassBg, marginBottom: 14 },
   glassInner: { padding: 18 },
 
   // hero
-  heroBanner:   {},
-  heroTop:      { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
+  heroBanner: {},
+  heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
   heroGreeting: { fontSize: 13, color: C.textSecondary, fontWeight: '500', marginBottom: 2 },
-  heroName:     { fontSize: 22, fontWeight: '800', color: C.textPrimary, letterSpacing: 0.2 },
-  statusPill:   { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(46,125,50,0.10)', borderWidth: 1, borderColor: 'rgba(46,125,50,0.25)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
-  statusTxt:    { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
-  vitalsRow:    { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(0,181,173,0.06)', borderRadius: 14, paddingVertical: 12, paddingHorizontal: 8, borderWidth: 1, borderColor: 'rgba(0,181,173,0.15)' },
-  statBadge:    { flex: 1, alignItems: 'center' },
-  statValue:    { fontSize: 18, fontWeight: '800', letterSpacing: -0.5 },
-  statUnit:     { fontSize: 11, fontWeight: '500', color: C.textSecondary },
-  statLabel:    { fontSize: 10, color: C.textMuted, fontWeight: '500', marginTop: 2, textAlign: 'center' },
-  vDiv:         { width: 1, height: 32, backgroundColor: 'rgba(0,181,173,0.20)' },
+  heroName: { fontSize: 22, fontWeight: '800', color: C.textPrimary, letterSpacing: 0.2 },
+  statusPill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(46,125,50,0.10)', borderWidth: 1, borderColor: 'rgba(46,125,50,0.25)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
+  statusTxt: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
 
   // carousel
-  carouselCard:  { marginRight: 12 },
-  carouselRow:   { flexDirection: 'row', alignItems: 'center' },
-  carouselIcon:  { width: 50, height: 50, borderRadius: 15, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.60)' },
+  carouselCard: { marginRight: 12 },
+  carouselRow: { flexDirection: 'row', alignItems: 'center' },
+  carouselIcon: { width: 50, height: 50, borderRadius: 15, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.60)' },
   carouselLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 4 },
   carouselTitle: { fontSize: 16, fontWeight: '800', color: C.textPrimary, marginBottom: 3, lineHeight: 22 },
-  carouselSub:   { fontSize: 12, color: C.textSecondary, lineHeight: 16 },
-  dotsRow:       { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
-  dot:           { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(0,181,173,0.25)' },
-  dotActive:     { width: 18, borderRadius: 3 },
+  carouselSub: { fontSize: 12, color: C.textSecondary, lineHeight: 16 },
+  dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
+  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(0,181,173,0.25)' },
+  dotActive: { width: 18, borderRadius: 3 },
 
   // search
-  searchWrap:  { flexDirection: 'row', alignItems: 'center', paddingVertical: 14 },
-  searchInput: { flex: 1, fontSize: 14, color: C.textPrimary, padding: 0 },
+  searchCard: { marginBottom: 20 },
+  searchInner: { flexDirection: 'row', alignItems: 'center' },
+  searchInput: { flex: 1, fontSize: 15, color: C.textPrimary, padding: 0, minHeight: 24 },
 
   // section
-  secHeader:  { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  secTitle:   { fontSize: 17, fontWeight: '800', color: C.textPrimary, letterSpacing: 0.2 },
+  secHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
+  secTitle: { fontSize: 17, fontWeight: '800', color: C.textPrimary, letterSpacing: 0.2 },
   viewAllRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   viewAllTxt: { fontSize: 13, fontWeight: '600' },
 
   // grid — 2-column for 4 cards
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 0 },
-  actionCard:   { width: (width - 44) / 2, minHeight: 140, padding: 0, marginBottom: 0 },
-  actionTop:    { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 14, paddingBottom: 0, marginBottom: 12 },
+  actionCard: { width: (width - 44) / 2, minHeight: 140, padding: 0, marginBottom: 0 },
+  actionTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', padding: 14, paddingBottom: 0, marginBottom: 12 },
   actionIconBg: { width: 44, height: 44, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  actionArrow:  { width: 28, height: 28, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.70)' },
-  actionLabel:  { fontSize: 13, fontWeight: '700', color: C.textPrimary, paddingHorizontal: 14, marginBottom: 3, lineHeight: 18 },
-  actionSub:    { fontSize: 11, color: C.textMuted, paddingHorizontal: 14, paddingBottom: 16, lineHeight: 15 },
-  glowStrip:    { position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, opacity: 0.55, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
+  actionArrow: { width: 28, height: 28, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.70)' },
+  actionLabel: { fontSize: 13, fontWeight: '700', color: C.textPrimary, paddingHorizontal: 14, marginBottom: 3, lineHeight: 18 },
+  actionSub: { fontSize: 11, color: C.textMuted, paddingHorizontal: 14, paddingBottom: 16, lineHeight: 15 },
+  glowStrip: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, opacity: 0.55, borderBottomLeftRadius: 20, borderBottomRightRadius: 20 },
 
   // risk
-  riskCard:     { marginBottom: 12 },
-  riskRow:      { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
-  riskIconBg:   { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  riskTitle:    { fontSize: 14, fontWeight: '700', color: C.textPrimary },
-  riskBadge:    { backgroundColor: 'rgba(229,57,53,0.12)', borderWidth: 1, borderColor: 'rgba(229,57,53,0.30)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  riskCard: { marginBottom: 12 },
+  riskRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 14 },
+  riskIconBg: { width: 46, height: 46, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
+  riskTitle: { fontSize: 14, fontWeight: '700', color: C.textPrimary },
+  riskBadge: { backgroundColor: 'rgba(229,57,53,0.12)', borderWidth: 1, borderColor: 'rgba(229,57,53,0.30)', borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
   riskBadgeTxt: { fontSize: 9, fontWeight: '800', color: C.red1, letterSpacing: 0.8 },
-  riskSub:      { fontSize: 12, color: C.textSecondary, lineHeight: 18 },
-  bar:          { height: 6, backgroundColor: 'rgba(0,0,0,0.07)', borderRadius: 3, overflow: 'hidden', marginBottom: 6 },
-  barFill:      { height: '100%', borderRadius: 3 },
-  barLabels:    { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  barLabel:     { fontSize: 10, color: C.textMuted, fontWeight: '500' },
+  riskSub: { fontSize: 12, color: C.textSecondary, lineHeight: 18 },
+  bar: { height: 6, backgroundColor: 'rgba(0,0,0,0.07)', borderRadius: 3, overflow: 'hidden', marginBottom: 6 },
+  barFill: { height: '100%', borderRadius: 3 },
+  barLabels: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  barLabel: { fontSize: 10, color: C.textMuted, fontWeight: '500' },
 
   // ai
-  aiCard:    { marginBottom: 12 },
-  aiTitle:   { fontSize: 15, fontWeight: '700', color: C.textPrimary, marginBottom: 4 },
-  aiSub:     { fontSize: 12, color: C.textSecondary, lineHeight: 18 },
-  aiChip:    { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: 'rgba(123,31,162,0.08)', borderWidth: 1, borderColor: 'rgba(123,31,162,0.20)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 4 },
+  aiCard: { marginBottom: 12 },
+  aiTitle: { fontSize: 15, fontWeight: '700', color: C.textPrimary, marginBottom: 4 },
+  aiSub: { fontSize: 12, color: C.textSecondary, lineHeight: 18 },
+  aiChip: { flexDirection: 'row', alignItems: 'center', alignSelf: 'flex-start', backgroundColor: 'rgba(123,31,162,0.08)', borderWidth: 1, borderColor: 'rgba(123,31,162,0.20)', borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6, marginBottom: 4 },
   aiChipTxt: { fontSize: 12, fontWeight: '600' },
 });

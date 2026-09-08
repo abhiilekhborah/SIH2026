@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChipSelect } from '@/components/chip-select';
 import { FormField } from '@/components/form-field';
+import { getOrCreateDbUserId, supabase } from '@/lib/supabase';
 
 const BLUE = '#1A66E8';
 const DARK_BLUE = '#123E9E';
@@ -14,7 +15,6 @@ const BORDER = '#E5E7EB';
 
 const CONSULTATION_MODES = ['In-person', 'Video', 'Phone'];
 
-/** Mirrors the fields of doctor_profiles that the doctor fills in. */
 type DoctorForm = {
   name: string;
   specialization: string;
@@ -65,27 +65,46 @@ export default function DoctorDetails() {
     setSaving(true);
 
     try {
+      const dbUserId = await getOrCreateDbUserId(user, form.name);
+
       const payload = {
-        user_id: user?.id,
+        ...(dbUserId ? { user_id: dbUserId } : {}),
         name: form.name.trim(),
         specialization: form.specialization.trim() || null,
         qualification: form.qualification.trim() || null,
         license_no: form.licenseNo.trim(),
-        // The columns are a number and a decimal, so send numbers, not text.
         experience_years: form.experienceYears
           ? Number(form.experienceYears)
           : null,
         consultation_fee: form.consultationFee
           ? Number(form.consultationFee)
           : null,
-        // The column is a single varchar, so the choices go in joined up.
         consultation_modes: form.consultationModes.join(',') || null,
       };
 
-      // TODO: POST this to the backend that writes doctor_profiles.
       console.log('doctor_profiles payload', payload);
 
-      router.replace('/home');
+      try {
+        const { error: insertError } = await supabase.from('doctor_profiles').insert(payload);
+        if (insertError) {
+          if (insertError.code === '23505' && dbUserId) {
+            const { error: updateError } = await supabase
+              .from('doctor_profiles')
+              .update(payload)
+              .eq('user_id', dbUserId);
+            if (updateError) {
+              console.warn('Supabase update warning for doctor_profiles:', updateError.message);
+            }
+          } else {
+            console.warn('Supabase insert warning for doctor_profiles:', insertError.message);
+          }
+        }
+      } catch (dbErr) {
+        console.warn('Supabase request caught error:', dbErr);
+      }
+
+      // Doctor home route in main front-end
+      router.replace('/(tabs2)/home');
     } catch {
       Alert.alert('Could not save', 'Check your connection and try again.');
     } finally {
@@ -128,13 +147,11 @@ export default function DoctorDetails() {
           required
         />
 
-        <Text style={styles.sectionHeading}>Practice</Text>
-
         <FormField
           label="Specialization"
           value={form.specialization}
           onChangeText={(value) => update('specialization', value)}
-          placeholder="e.g. General Medicine, Paediatrics"
+          placeholder="General Medicine, Cardiology..."
           autoCapitalize="words"
         />
 
@@ -142,23 +159,20 @@ export default function DoctorDetails() {
           label="Qualification"
           value={form.qualification}
           onChangeText={(value) => update('qualification', value)}
-          placeholder="e.g. MBBS, MD"
+          placeholder="MBBS, MD..."
           autoCapitalize="characters"
         />
 
         <FormField
-          label="Years of Experience"
+          label="Experience (Years)"
           value={form.experienceYears}
           onChangeText={(value) => update('experienceYears', value)}
           placeholder="e.g. 8"
           keyboardType="number-pad"
-          maxLength={2}
         />
 
-        <Text style={styles.sectionHeading}>Consultation</Text>
-
         <ChipSelect
-          label="How will you consult?"
+          label="Consultation Modes"
           options={CONSULTATION_MODES}
           value={form.consultationModes}
           onChange={(value) => update('consultationModes', value)}
@@ -166,21 +180,20 @@ export default function DoctorDetails() {
         />
 
         <FormField
-          label="Consultation Fee"
+          label="Consultation Fee (₹)"
           value={form.consultationFee}
           onChangeText={(value) => update('consultationFee', value)}
-          placeholder="Amount in rupees"
+          placeholder="500"
           keyboardType="number-pad"
-          hint="Leave blank for free consultations."
         />
 
         <Pressable
-          style={[styles.submitButton, saving && styles.submitButtonDisabled]}
+          style={styles.submitButton}
           onPress={handleSubmit}
           disabled={saving}
         >
           <Text style={styles.submitText}>
-            {saving ? 'Saving...' : 'Save and continue'}
+            {saving ? 'Saving...' : 'Save & Continue'}
           </Text>
         </Pressable>
       </ScrollView>
@@ -213,35 +226,22 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '700',
     color: '#111827',
-    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 15,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  sectionHeading: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#9CA3AF',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    marginTop: 28,
+    fontSize: 16,
+    color: '#4B5563',
+    marginTop: 6,
   },
   submitButton: {
     height: 56,
-    borderRadius: 8,
+    borderRadius: 10,
     backgroundColor: DARK_BLUE,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: 32,
-  },
-  submitButtonDisabled: {
-    backgroundColor: '#9CA3AF',
   },
   submitText: {
     color: '#FFFFFF',

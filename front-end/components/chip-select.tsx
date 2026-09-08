@@ -73,6 +73,8 @@ export function ChipSelect({
   );
 }
 
+export default ChipSelect;
+
 const styles = StyleSheet.create({
   field: {
     marginTop: 18,
