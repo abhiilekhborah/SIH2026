@@ -5,9 +5,10 @@ import * as AuthSession from 'expo-auth-session';
 import { Image } from 'expo-image';
 import { Link, useRouter } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Alert,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -25,6 +26,17 @@ import { getOrCreateDbUserId } from '@/lib/supabase';
 // Closes the browser popup once Google sends the user back to the app.
 WebBrowser.maybeCompleteAuthSession();
 
+// Warm up the browser on Android to prevent Custom Tabs from auto-closing
+function useWarmUpBrowser() {
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    void WebBrowser.warmUpAsync();
+    return () => {
+      void WebBrowser.coolDownAsync();
+    };
+  }, []);
+}
+
 const BLUE = '#1A66E8'; // logo + links
 const DARK_BLUE = '#123E9E'; // Register button
 const BORDER = '#E5E7EB';
@@ -32,6 +44,8 @@ const BORDER = '#E5E7EB';
 const GENDERS = ['Male', 'Female', 'Other'];
 
 export default function SignUpScreen() {
+  useWarmUpBrowser();
+
   const { isLoaded, signUp, setActive } = useSignUp();
   const { startSSOFlow } = useSSO();
   const { user } = useUser();
@@ -135,16 +149,31 @@ export default function SignUpScreen() {
     setLoading(true);
 
     try {
-      const { createdSessionId, setActive: setActiveSSO } = await startSSOFlow({
+      const redirectUrl = AuthSession.makeRedirectUri({
+        scheme: 'mediquick',
+        path: 'sso-callback',
+      });
+
+      const {
+        createdSessionId,
+        setActive: setActiveSSO,
+        signIn: ssoSignIn,
+        signUp: ssoSignUp,
+        authSessionResult,
+      } = await startSSOFlow({
         strategy: 'oauth_google',
-        redirectUrl: AuthSession.makeRedirectUri(),
+        redirectUrl,
       });
 
       if (createdSessionId && setActiveSSO) {
         await setActiveSSO({ session: createdSessionId });
+        const freshUser =
+          clerk.client?.sessions?.find((s: any) => s.id === createdSessionId)?.user ||
+          clerk.user ||
+          user;
 
         // Save initial user record to Supabase `users` table
-        await getOrCreateDbUserId(clerk.user || user, {
+        await getOrCreateDbUserId(freshUser, {
           name: fullName,
           phone,
           dob,
@@ -152,8 +181,14 @@ export default function SignUpScreen() {
           preferredLanguage,
         });
 
-        const targetRoute = await resolveUserRoleDestination(clerk.user || user);
+        const targetRoute = await resolveUserRoleDestination(freshUser);
         router.replace(targetRoute);
+      } else if (authSessionResult?.type === 'cancel' || authSessionResult?.type === 'dismiss') {
+        // User closed or dismissed popup
+      } else if (ssoSignUp?.status === 'missing_requirements') {
+        Alert.alert('Incomplete Profile', 'Please complete the registration fields below.');
+      } else if (ssoSignIn?.status && ssoSignIn.status !== 'complete') {
+        Alert.alert('Sign Up Status', `Status: ${ssoSignIn.status}`);
       }
     } catch (err: any) {
       Alert.alert('Google sign up failed', err.errors?.[0]?.message ?? 'Try again');
