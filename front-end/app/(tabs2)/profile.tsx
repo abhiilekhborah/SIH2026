@@ -1,13 +1,5 @@
-import React, { useState } from 'react';
-import {
-  StyleSheet,
-  Text,
-  View,
-  ScrollView,
-  Pressable,
-  TextInput,
-  Alert,
-} from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Image } from 'expo-image';
@@ -15,6 +7,8 @@ import { useAuth } from '@clerk/expo';
 import { useRouter } from 'expo-router';
 
 // Color Palette
+import { useMyProfile } from '@/hooks/useMyProfile';
+
 const COLORS = {
   white: '#FFFFFF',
   background: '#F3F2EF', // LinkedIn-ish background color
@@ -32,18 +26,59 @@ export default function Profile() {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
 
-  // Editable Profile States
+  const { data, loading, error } = useMyProfile();
+
+  // Starts empty and is filled from doctor_profiles below. Every field here is
+  // backed by a real column, so nothing on screen is invented.
   const [profileData, setProfileData] = useState({
-    name: 'Dr. Rahul Sharma',
-    headline: 'Interventional Cardiologist at City General Hospital',
-    location: 'New Delhi, India',
-    about: 'Dedicated and compassionate Interventional Cardiologist with over 15 years of experience in performing complex cardiac procedures. Committed to providing patient-centered care and advancing cardiovascular health through innovative treatments and clinical research.',
-    email: 'rahul.sharma@mediquick.com',
-    phone: '+91 98765 43210',
-    qualifications: 'MBBS, MD, DM (Cardiology)',
-    registrationNo: 'MCI-123456 (Delhi Medical Council)',
-    workingHours: '09:00 AM - 05:00 PM (Mon - Sat)',
+    name: '',
+    headline: '',
+    location: '',
+    about: '',
+    email: '',
+    phone: '',
+    qualifications: '',
+    registrationNo: '',
+    consultation: '',
   });
+
+  useEffect(() => {
+    if (!data || data.role !== 'doctor') return;
+
+    const { profile, user } = data;
+    const years = profile.experienceYears;
+    const fee = profile.consultationFee ? Number(profile.consultationFee) : null;
+    const modes = profile.consultationModes
+      ? profile.consultationModes
+          .split(',')
+          .map((m) => m.trim().replace(/_/g, '-'))
+          .filter(Boolean)
+      : [];
+
+    setProfileData({
+      name: profile.name || user.name || 'Doctor',
+      headline:
+        [profile.specialization, profile.qualification].filter(Boolean).join('  •  ') ||
+        'Doctor',
+      location: years ? `${years} year${years === 1 ? '' : 's'} of experience` : '',
+      about:
+        [
+          profile.specialization && `${profile.specialization} on MediQuick.`,
+          years && `${years} year${years === 1 ? '' : 's'} of practice.`,
+          modes.length && `Consults ${modes.join(' and ')}.`,
+        ]
+          .filter(Boolean)
+          .join(' ') || 'No description added yet.',
+      email: user.email || '—',
+      phone: user.phone || '—',
+      qualifications: profile.qualification || '—',
+      registrationNo: profile.licenseNo || '—',
+      consultation:
+        [modes.join(', '), fee !== null ? `₹${fee.toFixed(0)}` : null]
+          .filter(Boolean)
+          .join('  •  ') || '—',
+    });
+  }, [data]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -76,7 +111,29 @@ export default function Profile() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        
+
+        {/* Say why the fields are empty rather than leaving blanks on screen. */}
+        {loading && !data && (
+          <View style={styles.statusBanner}>
+            <ActivityIndicator size="small" color={COLORS.primaryBlue} />
+            <Text style={styles.statusText}>Loading your profile…</Text>
+          </View>
+        )}
+        {!!error && (
+          <View style={[styles.statusBanner, styles.statusBannerError]}>
+            <Ionicons name="alert-circle" size={18} color="#B91C1C" />
+            <Text style={[styles.statusText, { color: '#B91C1C' }]}>{error}</Text>
+          </View>
+        )}
+        {!loading && !error && data?.role !== 'doctor' && (
+          <View style={styles.statusBanner}>
+            <Ionicons name="information-circle" size={18} color={COLORS.textSecondary} />
+            <Text style={styles.statusText}>
+              This account has no doctor profile yet.
+            </Text>
+          </View>
+        )}
+
         {/* Cover Photo & Profile Intro Card */}
         <View style={styles.card}>
           <Image
@@ -116,7 +173,9 @@ export default function Profile() {
               <Text style={styles.headline}>{profileData.headline}</Text>
             )}
 
-            <Text style={styles.location}>{profileData.location}</Text>
+            {!!profileData.location && (
+              <Text style={styles.location}>{profileData.location}</Text>
+            )}
 
           </View>
         </View>
@@ -177,11 +236,11 @@ export default function Profile() {
             <View style={styles.listItem}>
               <Ionicons name="time" size={24} color={COLORS.textSecondary} />
               <View style={styles.listTextContainer}>
-                <Text style={styles.listTitle}>Working Hours</Text>
+                <Text style={styles.listTitle}>Consultation</Text>
                 {isEditing ? (
-                  <TextInput style={styles.listInput} value={profileData.workingHours} onChangeText={(text) => setProfileData({ ...profileData, workingHours: text })} />
+                  <TextInput style={styles.listInput} value={profileData.consultation} onChangeText={(text) => setProfileData({ ...profileData, consultation: text })} />
                 ) : (
-                  <Text style={styles.listSubtitle}>{profileData.workingHours}</Text>
+                  <Text style={styles.listSubtitle}>{profileData.consultation}</Text>
                 )}
               </View>
             </View>
@@ -234,6 +293,18 @@ export default function Profile() {
 }
 
 const styles = StyleSheet.create({
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+  },
+  statusBannerError: { backgroundColor: '#FEF2F2' },
+  statusText: { fontSize: 14, color: '#475569', flex: 1 },
   container: {
     flex: 1,
     backgroundColor: COLORS.background,

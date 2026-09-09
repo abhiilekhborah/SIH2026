@@ -4,7 +4,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useMyProfile } from '@/hooks/useMyProfile';
+import { formatPlace } from '@/lib/profile';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function Profile() {
@@ -18,7 +20,42 @@ export default function Profile() {
     router.replace('/');
   };
 
-  const userName = user?.fullName || user?.firstName || 'Arjun Sharma';
+  const { data, loading, error } = useMyProfile();
+
+  const patient = data?.role === 'patient' ? data.profile : null;
+
+  // Clerk is only the fallback while the profile request is in flight.
+  const userName =
+    patient?.name || data?.user.name || user?.fullName || user?.firstName || 'Patient';
+
+  const list = (values?: string[] | null) =>
+    values && values.length ? values.join(', ') : null;
+
+  type DetailRow = {
+    icon: React.ComponentProps<typeof Ionicons>['name'];
+    label: string;
+    value: string | null;
+  };
+
+  const allDetails: DetailRow[] = [
+    { icon: 'water-outline', label: 'Blood group', value: patient?.bloodGroup ?? null },
+    { icon: 'call-outline', label: 'Phone', value: data?.user.phone ?? null },
+    { icon: 'mail-outline', label: 'Email', value: data?.user.email ?? null },
+    { icon: 'location-outline', label: 'Address', value: formatPlace([
+        patient?.address, patient?.villageTown, patient?.district, patient?.state, patient?.pincode,
+      ]) },
+    { icon: 'alert-circle-outline', label: 'Allergies', value: list(patient?.allergies) },
+    { icon: 'pulse-outline', label: 'Conditions', value: list(patient?.chronicConditions) },
+    {
+      icon: 'people-outline',
+      label: 'Emergency contact',
+      value: patient?.emergencyContactName
+        ? [patient.emergencyContactName, patient.emergencyContactPhone].filter(Boolean).join(' · ')
+        : null,
+    },
+  ];
+
+  const details = allDetails.filter((row) => row.value);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -70,9 +107,15 @@ export default function Profile() {
                 <Text style={styles.userNameText}>{userName}</Text>
                 <Ionicons name="checkmark-circle" size={18} color="#6366f1" style={{ marginLeft: 6 }} />
               </View>
-              <View style={styles.patientIdBadge}>
-                <Text style={styles.patientIdText}>Patient ID: PAT-78291</Text>
-              </View>
+              {!!(patient?.abhaId || patient?.id) && (
+                <View style={styles.patientIdBadge}>
+                  <Text style={styles.patientIdText}>
+                    {patient?.abhaId
+                      ? `ABHA: ${patient.abhaId}`
+                      : `Patient ID: ${patient!.id.slice(0, 8).toUpperCase()}`}
+                  </Text>
+                </View>
+              )}
               <View style={styles.quoteRow}>
                 <Text style={styles.quoteIcon}>❝</Text>
                 <Text style={styles.quoteText}>
@@ -83,6 +126,37 @@ export default function Profile() {
           </View>
 
         </LinearGradient>
+
+        {/* Everything here comes from patient_profiles; rows with no value are
+            left out rather than shown as blanks. */}
+        <View style={styles.detailsCard}>
+          {loading && !data ? (
+            <View style={styles.detailRow}>
+              <ActivityIndicator size="small" color="#00B5AD" />
+              <Text style={styles.detailValue}>Loading your details…</Text>
+            </View>
+          ) : error ? (
+            <View style={styles.detailRow}>
+              <Ionicons name="alert-circle" size={18} color="#B91C1C" />
+              <Text style={[styles.detailValue, { color: '#B91C1C' }]}>{error}</Text>
+            </View>
+          ) : details.length === 0 ? (
+            <View style={styles.detailRow}>
+              <Ionicons name="information-circle" size={18} color="#8AACBA" />
+              <Text style={styles.detailValue}>
+                No health details saved yet.
+              </Text>
+            </View>
+          ) : (
+            details.map((row) => (
+              <View key={row.label} style={styles.detailRow}>
+                <Ionicons name={row.icon} size={18} color="#00B5AD" />
+                <Text style={styles.detailLabel}>{row.label}</Text>
+                <Text style={styles.detailValue} numberOfLines={2}>{row.value}</Text>
+              </View>
+            ))
+          )}
+        </View>
 
         {/* Options List */}
         <View style={styles.optionsContainer}>
@@ -127,6 +201,19 @@ function OptionItem({ icon, iconColor, iconBg, title, onPress, hideChevron }: { 
 }
 
 const styles = StyleSheet.create({
+  detailsCard: {
+    marginHorizontal: 20,
+    marginTop: 18,
+    padding: 16,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: 'rgba(0,181,173,0.18)',
+    gap: 12,
+  },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  detailLabel: { fontSize: 13, color: '#8AACBA', width: 108 },
+  detailValue: { flex: 1, fontSize: 14, color: '#0D3349', fontWeight: '600' },
   safeArea: {
     flex: 1,
     backgroundColor: '#F0FAFA',

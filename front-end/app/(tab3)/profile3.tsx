@@ -4,7 +4,10 @@ import { useAuth, useUser } from '@clerk/expo';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
+import { useMyProfile } from '@/hooks/useMyProfile';
+import { formatPlace } from '@/lib/profile';
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -32,8 +35,25 @@ export default function PharmacistProfileScreen() {
   const [coldChainAlerts, setColdChainAlerts] = useState(true);
   const [emergencySiren, setEmergencySiren] = useState(false);
 
-  const userName = user?.fullName || user?.firstName || 'Dr. Rajesh Mehta';
-  const userEmail = user?.primaryEmailAddress?.emailAddress || 'rajesh.pharma@mediquick.com';
+  const { data, loading, error } = useMyProfile();
+
+  const pharmacist = data?.role === 'pharmacist' ? data.profile : null;
+  const pharmacy = data?.role === 'pharmacist' ? data.pharmacy : null;
+
+  // Clerk is only the fallback while the profile request is in flight.
+  const userName =
+    pharmacist?.name || data?.user.name || user?.fullName || user?.firstName || 'Pharmacist';
+  const userEmail =
+    data?.user.email || user?.primaryEmailAddress?.emailAddress || '—';
+
+  const dash = (value?: string | null) => (value && value.trim()) || '—';
+  const pharmacyPlace = formatPlace([
+    pharmacy?.address,
+    pharmacy?.villageTown,
+    pharmacy?.district,
+    pharmacy?.state,
+    pharmacy?.pincode,
+  ]);
 
   const handleSignOut = async () => {
     try {
@@ -54,7 +74,9 @@ export default function PharmacistProfileScreen() {
         centerElement={
           <View style={styles.headerCenter}>
             <Text style={styles.headerTitle}>Dispensary & Pharmacist Profile</Text>
-            <Text style={styles.headerSubtitle}>Verified License #PH-2024-8902</Text>
+            <Text style={styles.headerSubtitle}>
+              {pharmacist?.licenseNo ? `Licence ${pharmacist.licenseNo}` : 'Pharmacist profile'}
+            </Text>
           </View>
         }
       />
@@ -64,6 +86,28 @@ export default function PharmacistProfileScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        {/* Say why fields are blank rather than showing empty rows. */}
+        {loading && !data && (
+          <View style={styles.statusBanner}>
+            <ActivityIndicator size="small" color={PRIMARY_BLUE} />
+            <Text style={styles.statusText}>Loading your profile…</Text>
+          </View>
+        )}
+        {!!error && (
+          <View style={[styles.statusBanner, { backgroundColor: '#FEF2F2' }]}>
+            <Ionicons name="alert-circle" size={18} color="#B91C1C" />
+            <Text style={[styles.statusText, { color: '#B91C1C' }]}>{error}</Text>
+          </View>
+        )}
+        {!loading && !error && data?.role === 'pharmacist' && !pharmacy && (
+          <View style={styles.statusBanner}>
+            <Ionicons name="information-circle" size={18} color={TEXT_MUTED} />
+            <Text style={styles.statusText}>
+              You are not linked to a pharmacy yet, so no orders can reach you.
+            </Text>
+          </View>
+        )}
+
         {/* Pharmacist Profile Card */}
         <View style={styles.profileCard}>
           <View style={styles.profileTopRow}>
@@ -72,7 +116,9 @@ export default function PharmacistProfileScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={styles.userNameText}>{userName}</Text>
-              <Text style={styles.roleTag}>Registered Pharmacist • R.Ph 2024</Text>
+              <Text style={styles.roleTag}>
+                {pharmacist ? `Registered Pharmacist • ${pharmacist.licenseNo}` : 'Pharmacist'}
+              </Text>
               <Text style={styles.userEmailText}>{userEmail}</Text>
             </View>
           </View>
@@ -83,25 +129,29 @@ export default function PharmacistProfileScreen() {
             <View style={styles.detailRow}>
               <Ionicons name="business-outline" size={16} color={PRIMARY_BLUE} />
               <Text style={styles.detailText}>
-                <Text style={{ fontWeight: '700' }}>Store: </Text>MediQuick Rural Dispensary Unit #4
+                <Text style={{ fontWeight: '700' }}>Store: </Text>
+                {dash(pharmacy?.name)}
               </Text>
             </View>
             <View style={styles.detailRow}>
               <Ionicons name="location-outline" size={16} color={PRIMARY_BLUE} />
               <Text style={styles.detailText}>
-                <Text style={{ fontWeight: '700' }}>Location: </Text>Shop 12, Village Central Chowk, PHC Road
+                <Text style={{ fontWeight: '700' }}>Location: </Text>
+                {dash(pharmacyPlace)}
               </Text>
             </View>
             <View style={styles.detailRow}>
-              <Ionicons name="time-outline" size={16} color={PRIMARY_BLUE} />
+              <Ionicons name="call-outline" size={16} color={PRIMARY_BLUE} />
               <Text style={styles.detailText}>
-                <Text style={{ fontWeight: '700' }}>Hours: </Text>08:00 AM - 10:00 PM (Daily)
+                <Text style={{ fontWeight: '700' }}>Phone: </Text>
+                {dash(pharmacy?.phone)}
               </Text>
             </View>
             <View style={styles.detailRow}>
               <Ionicons name="shield-checkmark-outline" size={16} color="#15803D" />
               <Text style={styles.detailText}>
-                <Text style={{ fontWeight: '700' }}>CDSCO Drug Lic: </Text>20B/21B-DL-98214
+                <Text style={{ fontWeight: '700' }}>Pharmacy Lic: </Text>
+                {dash(pharmacy?.licenseNo)}
               </Text>
             </View>
           </View>
@@ -189,6 +239,17 @@ export default function PharmacistProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  statusBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    backgroundColor: '#F1F5F9',
+  },
+  statusText: { fontSize: 14, color: TEXT_MUTED, flex: 1 },
   safeArea: {
     flex: 1,
     backgroundColor: BG_PAGE,
