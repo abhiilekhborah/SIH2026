@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
+import { ApiError } from '@/lib/api';
 import {
   fetchPatientPrescriptions,
   type Prescription as ApiPrescription,
@@ -41,11 +42,19 @@ export function usePatientPrescriptions() {
 
   const load = useCallback(async () => {
     setLoading(true);
+    const base = process.env.EXPO_PUBLIC_API_URL ?? '(unset -> localhost:3000)';
+    console.log('[usePatientPrescriptions] GET', `${base}/api/v1/prescriptions/patient/mine`);
     try {
       const rows = await fetchPatientPrescriptions();
+      console.log(`[usePatientPrescriptions] OK - ${rows.length} prescription(s)`);
       setPrescriptions(rows.map(toPatientPrescription));
       setError(null);
     } catch (err: any) {
+      // ApiError carries the HTTP status, which is what tells the causes apart:
+      // 0 = never reached the server, 401 = no/!bad token, 403 = no patient
+      // profile for this user, 404 = wrong URL (a trailing slash does this).
+      const status = err instanceof ApiError ? err.status : '(not an ApiError)';
+      console.log(`[usePatientPrescriptions] FAILED status=${status} message=${err?.message}`);
       setError(err?.message ?? 'Could not load prescriptions');
       setPrescriptions([]);
     } finally {
