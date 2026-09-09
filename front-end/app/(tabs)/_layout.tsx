@@ -56,8 +56,8 @@ export default function TabsLayout() {
               >
                 <View style={styles.emergencyHalo}>
                   <View style={styles.emergencyButton}>
-                    <Ionicons name="warning-outline" size={28} color="#fff" />
-                    <Text style={styles.emergencyText}>EMERGENCY</Text>
+                    <Ionicons name="warning-outline" size={18} color="#fff" />
+                    <Text style={styles.emergencyText}>SOS</Text>
                   </View>
                 </View>
               </TouchableOpacity>
@@ -149,35 +149,35 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   emergencyButtonWrapper: {
-    top: -10,
+    top: -2,
     justifyContent: "center",
     alignItems: "center",
   },
   emergencyHalo: {
-    width: 70,
-    height: 70,
-    borderRadius: 39,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     backgroundColor: "#ffffff",
     justifyContent: "center",
     alignItems: "center",
     shadowColor: "#EF4444",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 12,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   emergencyButton: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "#F43F5E",
     justifyContent: "center",
     alignItems: "center",
   },
   emergencyText: {
     color: "#ffffff",
-    fontSize: 9,
+    fontSize: 7,
     fontWeight: "700",
-    marginTop: 2,
+    marginTop: 1,
   },
 });

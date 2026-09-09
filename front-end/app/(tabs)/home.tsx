@@ -112,24 +112,13 @@ export default function Home() {
   const router = useRouter();
   const [unreadNotifications, setUnreadNotifications] = useState(3);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [showWelcome, setShowWelcome] = useState(true);
-  const scrollRef = useRef<ScrollView>(null);
+
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(28)).current;
 
   const userName = user?.firstName || user?.fullName || 'User';
 
-  const carouselItems = [
-    ...(showWelcome ? [{
-      id: 'welcome', label: `Hello, ${userName} 👋`,
-      title: 'How are you feeling today?', sub: 'Your health journey starts here',
-      accent: C.teal1, bg: 'rgba(0,212,200,0.10)', icon: 'heart-outline' as const,
-    }] : []),
-    { id: 'alert', label: '⚠️  Health Alert', title: 'Complete Health Assessment', sub: 'Review your recent risk indicators', accent: C.red1, bg: 'rgba(255,82,82,0.10)', icon: 'warning-outline' as const },
-    { id: 'report', label: '🔔  Notification', title: 'Your Report is Ready', sub: 'Tap to view your latest lab results', accent: C.blue1, bg: 'rgba(41,121,255,0.10)', icon: 'document-text-outline' as const },
-    { id: 'update', label: '📅  Updates', title: 'New Features Available', sub: "Discover what's new in MediQuick", accent: C.amber1, bg: 'rgba(255,215,64,0.10)', icon: 'sparkles-outline' as const },
-  ];
+
 
   const quickActions = [
     { id: 'appointments', icon: 'calendar-outline' as const, label: 'Appointments', sub: 'Schedule a visit', color: C.teal1, bg: C.tealDim },
@@ -143,21 +132,7 @@ export default function Home() {
       Animated.timing(fadeAnim, { toValue: 1, duration: 700, useNativeDriver: true }),
       Animated.timing(slideAnim, { toValue: 0, duration: 700, useNativeDriver: true }),
     ]).start();
-    const t = setTimeout(() => { setShowWelcome(false); }, 5000);
-    return () => clearTimeout(t);
   }, []);
-
-  useEffect(() => {
-    const n = carouselItems.length;
-    const iv = setInterval(() => {
-      setActiveIndex(prev => {
-        const next = (prev + 1) % n;
-        scrollRef.current?.scrollTo({ x: next * (width - 32), animated: true });
-        return next;
-      });
-    }, 3500);
-    return () => clearInterval(iv);
-  }, [carouselItems.length]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
@@ -196,52 +171,7 @@ export default function Home() {
             </View>
           </GlassCard>
 
-          {/* ── Carousel ── */}
-          <View style={{ marginBottom: 20 }}>
-            <ScrollView
-              ref={scrollRef}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              snapToInterval={width - 32}
-              decelerationRate="fast"
-              onMomentumScrollEnd={e => {
-                const idx = Math.round(e.nativeEvent.contentOffset.x / (width - 32));
-                setActiveIndex(idx);
-              }}
-            >
-              {carouselItems.map(item => (
-                <GlassCard
-                  key={item.id}
-                  style={[styles.carouselCard, { width: width - 48, backgroundColor: item.bg }]}
-                  onPress={() => { }}
-                >
-                  <View style={styles.carouselRow}>
-                    <View style={[styles.carouselIcon, { borderColor: item.accent }]}>
-                      <Ionicons name={item.icon} size={26} color={item.accent} />
-                    </View>
-                    <View style={{ flex: 1, marginLeft: 14 }}>
-                      <Text style={[styles.carouselLabel, { color: item.accent }]}>{item.label}</Text>
-                      <Text style={styles.carouselTitle}>{item.title}</Text>
-                      <Text style={styles.carouselSub}>{item.sub}</Text>
-                    </View>
-                    <Ionicons name="chevron-forward" size={20} color={item.accent} />
-                  </View>
-                </GlassCard>
-              ))}
-            </ScrollView>
-            <View style={styles.dotsRow}>
-              {carouselItems.map((item, i) => (
-                <View
-                  key={i}
-                  style={[
-                    styles.dot,
-                    activeIndex === i && [styles.dotActive, { backgroundColor: item.accent }],
-                  ]}
-                />
-              ))}
-            </View>
-          </View>
+
 
           {/* ── Search ── */}
           <GlassCard style={styles.searchCard}>
@@ -381,16 +311,7 @@ const styles = StyleSheet.create({
   statusPill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: 'rgba(46,125,50,0.10)', borderWidth: 1, borderColor: 'rgba(46,125,50,0.25)', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5 },
   statusTxt: { fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
 
-  // carousel
-  carouselCard: { marginRight: 12 },
-  carouselRow: { flexDirection: 'row', alignItems: 'center' },
-  carouselIcon: { width: 50, height: 50, borderRadius: 15, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.60)' },
-  carouselLabel: { fontSize: 11, fontWeight: '700', letterSpacing: 0.4, textTransform: 'uppercase', marginBottom: 4 },
-  carouselTitle: { fontSize: 16, fontWeight: '800', color: C.textPrimary, marginBottom: 3, lineHeight: 22 },
-  carouselSub: { fontSize: 12, color: C.textSecondary, lineHeight: 16 },
-  dotsRow: { flexDirection: 'row', justifyContent: 'center', gap: 6, marginTop: 10 },
-  dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(0,181,173,0.25)' },
-  dotActive: { width: 18, borderRadius: 3 },
+
 
   // search
   searchCard: { marginBottom: 20 },

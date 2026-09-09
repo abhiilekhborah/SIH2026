@@ -45,13 +45,10 @@ export function usePatientPrescriptions() {
     const base = process.env.EXPO_PUBLIC_API_URL ?? '(unset -> localhost:3000)';
     console.log('[usePatientPrescriptions] GET', `${base}/api/v1/prescriptions/patient/mine`);
     try {
-      console.log('[usePatientPrescriptions] fetching from API…');
       const rows = await fetchPatientPrescriptions();
-      console.log('[usePatientPrescriptions] got', rows.length, 'prescriptions', JSON.stringify(rows.map(r => ({ id: r.id, status: r.status, doctorName: r.doctorName }))));
       setPrescriptions(rows.map(toPatientPrescription));
       setError(null);
     } catch (err: any) {
-      console.warn('[usePatientPrescriptions] ERROR:', err?.status, err?.message);
       setError(err?.message ?? 'Could not load prescriptions');
       setPrescriptions([]);
     } finally {
