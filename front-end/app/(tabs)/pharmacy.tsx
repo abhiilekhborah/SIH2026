@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Image, Modal, TextInput } from 'react-native';
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, Dimensions, Image, Modal, TextInput, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
@@ -68,6 +68,19 @@ export default function PharmacyScreen() {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [showSendPrescription, setShowSendPrescription] = useState(false);
+  // iOS refuses to present a modal while another is still dismissing, and fails
+  // silently — the tap registers, the sheet never appears. So on iOS we record
+  // the intent and open the second modal from the first one's onDismiss.
+  const [openSendAfterDismiss, setOpenSendAfterDismiss] = useState(false);
+
+  const goToSendPrescription = () => {
+    setShowOrderModal(false);
+    if (Platform.OS === 'ios') {
+      setOpenSendAfterDismiss(true);
+    } else {
+      setShowSendPrescription(true);
+    }
+  };
   const [medicineText, setMedicineText] = useState('');
   const [requestedMedicines, setRequestedMedicines] = useState<RequestedMed[]>([]);
 
@@ -244,13 +257,19 @@ export default function PharmacyScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setShowOrderModal(false)}
+        onDismiss={() => {
+          if (openSendAfterDismiss) {
+            setOpenSendAfterDismiss(false);
+            setShowSendPrescription(true);
+          }
+        }}
       >
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowOrderModal(false)}>
           <TouchableOpacity style={styles.modalBox} activeOpacity={1}>
             <TouchableOpacity
               style={styles.sendPrescriptionBtn}
               activeOpacity={0.8}
-              onPress={() => { setShowOrderModal(false); setShowSendPrescription(true); }}
+              onPress={goToSendPrescription}
             >
               <Ionicons name="document-text-outline" size={24} color={MQ.teal} />
               <Text style={styles.sendPrescriptionText}>SEND PRESCRIPTION</Text>
