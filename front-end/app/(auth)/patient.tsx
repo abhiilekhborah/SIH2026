@@ -1,4 +1,3 @@
-import { useUser } from '@clerk/expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -7,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChipSelect } from '@/components/chip-select';
 import { FormField } from '@/components/form-field';
-import { getOrCreateDbUserId, supabase } from '@/lib/supabase';
+import { apiPost } from '@/lib/api';
 
 const BLUE = '#1A66E8';
 const DARK_BLUE = '#123E9E';
@@ -53,7 +52,6 @@ function toList(input: string): string[] {
 }
 
 export default function PatientDetails() {
-  const { user } = useUser();
   const router = useRouter();
 
   const [form, setForm] = useState<PatientForm>(EMPTY_FORM);
@@ -82,49 +80,35 @@ export default function PatientDetails() {
     setSaving(true);
 
     try {
-      const dbUserId = await getOrCreateDbUserId(user, form.name);
-
-      const payload = {
-        ...(dbUserId ? { user_id: dbUserId } : {}),
+      // Created through the API, not the Supabase client: `userauthenticate`
+      // resolves the caller from their Clerk session and owns `user_id`, so the
+      // NOT NULL column can no longer go missing. The old path built the
+      // payload around a possibly-null id, dropped the column, and let Postgres
+      // reject the row while the screen navigated on regardless.
+      await apiPost('/api/v1/user/patient/add', {
         name: form.name.trim(),
-        abha_id: form.abhaId.trim() || null,
-        blood_group: form.bloodGroup[0] ?? null,
-        emergency_contact_name: form.emergencyContactName.trim() || null,
-        emergency_contact_phone: form.emergencyContactPhone.trim() || null,
+        abhaId: form.abhaId.trim() || null,
+        bloodGroup: form.bloodGroup[0] ?? null,
+        emergencyContactName: form.emergencyContactName.trim() || null,
+        emergencyContactPhone: form.emergencyContactPhone.trim() || null,
         allergies: toList(form.allergies),
-        chronic_conditions: toList(form.chronicConditions),
+        chronicConditions: toList(form.chronicConditions),
         address: form.address.trim() || null,
-        village_town: form.villageTown.trim() || null,
+        villageTown: form.villageTown.trim() || null,
         district: form.district.trim() || null,
         state: form.state.trim() || null,
         pincode: form.pincode.trim() || null,
-      };
+      });
 
-      console.log('patient_profiles payload', payload);
-
-      try {
-        const { error: insertError } = await supabase.from('patient_profiles').insert(payload);
-        if (insertError) {
-          if (insertError.code === '23505' && dbUserId) {
-            const { error: updateError } = await supabase
-              .from('patient_profiles')
-              .update(payload)
-              .eq('user_id', dbUserId);
-            if (updateError) {
-              console.warn('Supabase update warning for patient_profiles:', updateError.message);
-            }
-          } else {
-            console.warn('Supabase insert warning for patient_profiles:', insertError.message);
-          }
-        }
-      } catch (dbErr) {
-        console.warn('Supabase request caught error:', dbErr);
-      }
-
-      // Patient home route in main front-end
       router.replace('/(tabs)/home');
-    } catch {
-      Alert.alert('Could not save', 'Check your connection and try again.');
+    } catch (err: any) {
+      // Stay on the form. Navigating away on failure is what let people reach
+      // the home screen half-registered, with no patient profile and therefore
+      // no prescriptions.
+      Alert.alert(
+        'Could not save your profile',
+        err?.message ?? 'Check your connection and try again.'
+      );
     } finally {
       setSaving(false);
     }
