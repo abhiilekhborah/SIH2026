@@ -1,4 +1,3 @@
-import { useUser } from '@clerk/expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
@@ -7,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ChipSelect } from '@/components/chip-select';
 import { FormField } from '@/components/form-field';
-import { getOrCreateDbUserId, supabase } from '@/lib/supabase';
+import { apiPost } from '@/lib/api';
 
 const BLUE = '#1A66E8';
 const DARK_BLUE = '#123E9E';
@@ -36,7 +35,6 @@ const EMPTY_FORM: DoctorForm = {
 };
 
 export default function DoctorDetails() {
-  const { user } = useUser();
   const router = useRouter();
 
   const [form, setForm] = useState<DoctorForm>(EMPTY_FORM);
@@ -65,48 +63,29 @@ export default function DoctorDetails() {
     setSaving(true);
 
     try {
-      const dbUserId = await getOrCreateDbUserId(user, form.name);
-
-      const payload = {
-        ...(dbUserId ? { user_id: dbUserId } : {}),
+      // Created through the API rather than the Supabase client: the server
+      // resolves the caller from their Clerk session and owns user_id. The old
+      // path spread it in conditionally, so a null id silently dropped the
+      // column -- and because doctor_profiles.user_id was nullable, the insert SUCCEEDED with user_id NULL,
+      // leaving a profile owned by nobody while the screen navigated on.
+      await apiPost('/api/v1/user/doctor/add', {
         name: form.name.trim(),
         specialization: form.specialization.trim() || null,
         qualification: form.qualification.trim() || null,
-        license_no: form.licenseNo.trim(),
-        experience_years: form.experienceYears
-          ? Number(form.experienceYears)
-          : null,
-        consultation_fee: form.consultationFee
-          ? Number(form.consultationFee)
-          : null,
-        consultation_modes: form.consultationModes.join(',') || null,
-      };
+        licenseNo: form.licenseNo.trim(),
+        experienceYears: form.experienceYears ? Number(form.experienceYears) : null,
+        consultationFee: form.consultationFee ? Number(form.consultationFee) : null,
+        consultationModes: form.consultationModes.join(',') || null,
+      });
 
-      console.log('doctor_profiles payload', payload);
-
-      try {
-        const { error: insertError } = await supabase.from('doctor_profiles').insert(payload);
-        if (insertError) {
-          if (insertError.code === '23505' && dbUserId) {
-            const { error: updateError } = await supabase
-              .from('doctor_profiles')
-              .update(payload)
-              .eq('user_id', dbUserId);
-            if (updateError) {
-              console.warn('Supabase update warning for doctor_profiles:', updateError.message);
-            }
-          } else {
-            console.warn('Supabase insert warning for doctor_profiles:', insertError.message);
-          }
-        }
-      } catch (dbErr) {
-        console.warn('Supabase request caught error:', dbErr);
-      }
-
-      // Doctor home route in main front-end
       router.replace('/(tabs2)/home');
-    } catch {
-      Alert.alert('Could not save', 'Check your connection and try again.');
+    } catch (err: any) {
+      // Stay on the form. Navigating away on failure is what let people reach
+      // the home screen with no usable profile.
+      Alert.alert(
+        'Could not save your profile',
+        err?.message ?? 'Check your connection and try again.'
+      );
     } finally {
       setSaving(false);
     }

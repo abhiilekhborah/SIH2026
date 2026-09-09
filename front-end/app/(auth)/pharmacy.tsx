@@ -1,4 +1,3 @@
-import { useUser } from '@clerk/expo';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
@@ -6,7 +5,8 @@ import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FormField } from '@/components/form-field';
-import { getOrCreateDbUserId, supabase } from '@/lib/supabase';
+import { apiPost } from '@/lib/api';
+import { fetchPharmacies } from '@/lib/prescriptions';
 
 const BLUE = '#1A66E8';
 const DARK_BLUE = '#123E9E';
@@ -34,7 +34,6 @@ type PharmacyOption = {
 };
 
 export default function PharmacyDetails() {
-  const { user } = useUser();
   const router = useRouter();
 
   const [form, setForm] = useState<PharmacyForm>(EMPTY_FORM);
@@ -49,16 +48,21 @@ export default function PharmacyDetails() {
   const loadPharmacies = useCallback(async () => {
     setLoadingPharmacies(true);
     try {
-      const { data, error } = await supabase
-        .from('pharmacies')
-        .select('id, name, village_town, district')
-        .order('name');
+      // Same API as the rest of the app, so the pharmacy list and the profile
+      // write agree about which server is authoritative.
+      const rows = await fetchPharmacies();
+      const data = rows
+        .map((p) => ({
+          id: p.id,
+          name: p.name,
+          village_town: p.villageTown,
+          district: p.district,
+        }))
+        .sort((a, b) => (a.name ?? '').localeCompare(b.name ?? ''));
 
-      if (error) throw error;
-
-      setPharmacies(data ?? []);
+      setPharmacies(data);
       setPharmaciesError(
-        (data ?? []).length === 0
+        data.length === 0
           ? 'No pharmacies are registered yet. Ask your admin to add yours.'
           : null
       );
@@ -101,40 +105,25 @@ export default function PharmacyDetails() {
     setSaving(true);
 
     try {
-      const dbUserId = await getOrCreateDbUserId(user, form.name);
-
-      const payload = {
-        ...(dbUserId ? { user_id: dbUserId } : {}),
+      // Created through the API rather than the Supabase client: the server
+      // resolves the caller from their Clerk session and owns user_id. The old
+      // path spread it in conditionally, so a null id silently dropped the
+      // column -- and because pharmacist_profiles.user_id was nullable, the insert SUCCEEDED with user_id NULL,
+      // leaving a profile owned by nobody while the screen navigated on.
+      await apiPost('/api/v1/pharmacist', {
         name: form.name.trim(),
-        license_no: form.licenseNo.trim(),
-        pharmacy_id: form.pharmacyId,
-      };
+        licenseNo: form.licenseNo.trim(),
+        pharmacyId: form.pharmacyId,
+      });
 
-      console.log('pharmacist_profiles payload', payload);
-
-      try {
-        const { error: insertError } = await supabase.from('pharmacist_profiles').insert(payload);
-        if (insertError) {
-          if (insertError.code === '23505' && dbUserId) {
-            const { error: updateError } = await supabase
-              .from('pharmacist_profiles')
-              .update(payload)
-              .eq('user_id', dbUserId);
-            if (updateError) {
-              console.warn('Supabase update warning for pharmacist_profiles:', updateError.message);
-            }
-          } else {
-            console.warn('Supabase insert warning for pharmacist_profiles:', insertError.message);
-          }
-        }
-      } catch (dbErr) {
-        console.warn('Supabase request caught error:', dbErr);
-      }
-
-      // Pharmacy home route in main front-end
       router.replace('/(tab3)/home3');
-    } catch {
-      Alert.alert('Could not save', 'Check your connection and try again.');
+    } catch (err: any) {
+      // Stay on the form. Navigating away on failure is what let people reach
+      // the home screen with no usable profile.
+      Alert.alert(
+        'Could not save your profile',
+        err?.message ?? 'Check your connection and try again.'
+      );
     } finally {
       setSaving(false);
     }
