@@ -1,4 +1,5 @@
 import { useUser, useAuth } from '@clerk/expo';
+import { useMyProfile } from '@/hooks/useMyProfile';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
@@ -77,8 +78,20 @@ export function PharmacistDrawer({ visible, onClose }: PharmacistDrawerProps) {
     }
   };
 
-  const userName = user?.fullName || user?.firstName || 'Dr. Rajesh Mehta';
-  const userEmail = user?.primaryEmailAddress?.emailAddress || 'rajesh.pharma@mediquick.com';
+  // Clerk owns authentication; the profile tables own who this person is
+  // professionally. The registration form is where they stated that name, and
+  // it is the one everyone else sees on a prescription — so the drawer shows it
+  // too, instead of whatever was typed into Clerk at sign-up.
+  const { data } = useMyProfile();
+
+  const userName =
+    data?.profile?.name ||
+    data?.user.name ||
+    user?.fullName ||
+    user?.firstName ||
+    'Pharmacist';
+  const userEmail =
+    data?.user.email || user?.primaryEmailAddress?.emailAddress || '—';
 
   const menuItems = [
     { id: 'profile', title: 'Profile & Dispensary', icon: 'person-outline' as const, path: '/(tab3)/profile3' },
