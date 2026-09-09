@@ -8,9 +8,11 @@ import {
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -37,7 +39,14 @@ const FILTER_TABS: (PrescriptionStatus | 'All')[] = [
 
 export default function PrescriptionManagementScreen() {
   const { openMenu } = useSideMenu();
-  const { prescriptions, updatePrescriptionStatus, sendQuickResponse } = usePharmacyStore();
+  const {
+    prescriptions,
+    prescriptionsLoading,
+    prescriptionsError,
+    refreshPrescriptions,
+    updatePrescriptionStatus,
+    sendQuickResponse,
+  } = usePharmacyStore();
 
   const [activeTab, setActiveTab] = useState<PrescriptionStatus | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
@@ -61,12 +70,34 @@ export default function PrescriptionManagementScreen() {
     });
   }, [prescriptions, activeTab, searchQuery]);
 
-  const handleSendSms = () => {
+  const handleSendSms = async () => {
     if (!smsModalRx) return;
-    sendQuickResponse(smsModalRx.id, smsText);
-    Alert.alert('Notification Sent', `Patient ${smsModalRx.patientName} has been notified via SMS.`);
+
+    try {
+      await sendQuickResponse(smsModalRx.id, smsText);
+    } catch (error: any) {
+      Alert.alert('Message not sent', error?.message ?? 'Please try again.');
+      return;
+    }
+
+    Alert.alert('Notification Sent', `Patient ${smsModalRx.patientName} has been notified.`);
     setSmsModalRx(null);
     setSmsText('');
+  };
+
+  // Accept / reject only claim success once the server confirms.
+  const handleWorkflowAction = async (
+    id: string,
+    next: PrescriptionStatus,
+    title: string,
+    message: string
+  ) => {
+    try {
+      await updatePrescriptionStatus(id, next);
+      Alert.alert(title, message);
+    } catch (error: any) {
+      Alert.alert('Could not update order', error?.message ?? 'Please try again.');
+    }
   };
 
   return (
@@ -140,8 +171,29 @@ export default function PrescriptionManagementScreen() {
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={prescriptionsLoading}
+            onRefresh={refreshPrescriptions}
+            tintColor={PRIMARY_BLUE}
+          />
+        }
       >
-        {filteredPrescriptions.length === 0 ? (
+        {prescriptionsLoading && prescriptions.length === 0 ? (
+          <View style={styles.emptyCard}>
+            <ActivityIndicator color={PRIMARY_BLUE} />
+            <Text style={styles.emptySub}>Loading the queue…</Text>
+          </View>
+        ) : prescriptionsError ? (
+          <View style={styles.emptyCard}>
+            <Ionicons name="cloud-offline-outline" size={42} color="#94A3B8" />
+            <Text style={styles.emptyTitle}>Queue unavailable</Text>
+            <Text style={styles.emptySub}>{prescriptionsError}</Text>
+            <TouchableOpacity style={styles.retryBtn} onPress={refreshPrescriptions}>
+              <Text style={styles.retryBtnText}>Try again</Text>
+            </TouchableOpacity>
+          </View>
+        ) : filteredPrescriptions.length === 0 ? (
           <View style={styles.emptyCard}>
             <Ionicons name="document-text-outline" size={42} color="#94A3B8" />
             <Text style={styles.emptyTitle}>No Prescriptions Found</Text>
@@ -225,10 +277,7 @@ export default function PrescriptionManagementScreen() {
                   <View style={{ flexDirection: 'row', gap: 10 }}>
                     <TouchableOpacity
                       style={[styles.workflowBtn, { backgroundColor: '#1A66E8', flex: 1 }]}
-                      onPress={() => {
-                        updatePrescriptionStatus(rx.id, 'Accepted');
-                        Alert.alert('Order Accepted', `Prescription moved to Accepted.`);
-                      }}
+                      onPress={() => handleWorkflowAction(rx.id, 'Accepted', 'Order Accepted', 'Prescription moved to Accepted.')}
                     >
                       <Ionicons name="checkmark-circle" size={16} color="#FFFFFF" />
                       <Text style={styles.workflowBtnText}>Accept Order</Text>
@@ -236,10 +285,7 @@ export default function PrescriptionManagementScreen() {
 
                     <TouchableOpacity
                       style={[styles.workflowBtn, { backgroundColor: '#DC2626', flex: 1 }]}
-                      onPress={() => {
-                        updatePrescriptionStatus(rx.id, 'Rejected');
-                        Alert.alert('Order Rejected', `Prescription has been rejected.`);
-                      }}
+                      onPress={() => handleWorkflowAction(rx.id, 'Rejected', 'Order Rejected', 'Prescription has been rejected.')}
                     >
                       <Ionicons name="close-circle" size={16} color="#FFFFFF" />
                       <Text style={styles.workflowBtnText}>Reject Order</Text>
@@ -714,6 +760,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: TEXT_MUTED,
     textAlign: 'center',
+  },
+  retryBtn: {
+    marginTop: 4,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: '#EFF6FF',
+  },
+  retryBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: PRIMARY_BLUE,
   },
 
   // Photo Modal

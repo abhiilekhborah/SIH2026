@@ -1,11 +1,13 @@
 import '../polyfills'
-import { ClerkProvider } from '@clerk/expo'
+import { ClerkProvider, useAuth } from '@clerk/expo'
 import { tokenCache } from '@clerk/expo/token-cache'
 import { Slot } from 'expo-router'
+import { useEffect } from 'react'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { NotificationProvider } from '@/components/notification-context'
+import { setAuthTokenProvider } from '@/lib/api'
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY
 
@@ -34,12 +36,29 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ClerkProvider publishableKey={publishableKey} tokenCache={tokenCache}>
+        <ApiAuthBridge />
         <NotificationProvider>
           <Slot />
         </NotificationProvider>
       </ClerkProvider>
     </GestureHandlerRootView>
   )
+}
+
+/**
+ * Hands Clerk's session-token getter to lib/api, so plain functions outside the
+ * component tree (the API client, the pharmacy store) can authenticate their
+ * requests. Renders nothing.
+ */
+function ApiAuthBridge() {
+  const { getToken } = useAuth()
+
+  useEffect(() => {
+    setAuthTokenProvider(() => getToken())
+    return () => setAuthTokenProvider(null)
+  }, [getToken])
+
+  return null
 }
 
 const styles = StyleSheet.create({
