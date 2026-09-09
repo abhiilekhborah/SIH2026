@@ -1,7 +1,6 @@
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
 import { useNotifications } from '@/components/notification-context';
-import { usePatientPrescriptions } from '@/hooks/usePatientPrescriptions';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { useState, useCallback } from 'react';
 import {
@@ -99,6 +98,31 @@ const MOCK_VISITS: HealthcareVisit[] = [
   { id: 'v3', facility: 'Primary Health Sub-Center', department: 'Maternal Health', date: '10 Aug 2026', status: 'completed', visitType: 'Checkup' },
   { id: 'v4', facility: 'City Medical Center', department: 'Dermatology', date: '2 Aug 2026', doctor: 'Dr. Anita Desai', status: 'completed', visitType: 'Teleconsultation' },
   { id: 'v5', facility: 'District Hospital', department: 'Pathology', date: '28 Jul 2026', status: 'completed', visitType: 'Lab Test' },
+];
+
+const MOCK_PRESCRIPTIONS: Prescription[] = [
+  {
+    id: 'p1', doctorName: 'Dr. Priya Sharma', facility: 'Community Health Center', date: '29 Aug 2026', medicineCount: 3, status: 'active',
+    medicines: [
+      { name: 'Metformin 500mg', dosage: '500mg', frequency: 'Twice daily', duration: '3 months', instructions: 'Take after meals' },
+      { name: 'Amlodipine 5mg', dosage: '5mg', frequency: 'Once daily', duration: '6 months', instructions: 'Take in the morning' },
+      { name: 'Vitamin D3', dosage: '1000 IU', frequency: 'Once weekly', duration: '3 months', instructions: 'Take with breakfast' },
+    ],
+  },
+  {
+    id: 'p2', doctorName: 'Dr. Rajesh Kumar', facility: 'District Hospital', date: '15 Aug 2026', medicineCount: 2, status: 'active',
+    medicines: [
+      { name: 'Atorvastatin 10mg', dosage: '10mg', frequency: 'Once daily', duration: '6 months', instructions: 'Take at bedtime' },
+      { name: 'Aspirin 75mg', dosage: '75mg', frequency: 'Once daily', duration: 'Ongoing', instructions: 'Take after food' },
+    ],
+  },
+  {
+    id: 'p3', doctorName: 'Dr. Anita Desai', facility: 'City Medical Center', date: '2 Aug 2026', medicineCount: 2, status: 'completed',
+    medicines: [
+      { name: 'Hydrocortisone Cream', dosage: '1%', frequency: 'Twice daily', duration: '2 weeks', instructions: 'Apply thin layer on affected area' },
+      { name: 'Cetirizine 10mg', dosage: '10mg', frequency: 'Once daily', duration: '1 week', instructions: 'Take at night' },
+    ],
+  },
 ];
 
 const MOCK_DIAGNOSTICS: Diagnostic[] = [
@@ -242,7 +266,7 @@ const filterStyles = StyleSheet.create({
 
 // ─── List View ────────────────────────────────────────────────────────
 
-function ListView({ category, onBack, onSelectItem, prescriptions }: { category: CategoryId; onBack: () => void; onSelectItem: (item: any) => void; prescriptions: Prescription[] }) {
+function ListView({ category, onBack, onSelectItem }: { category: CategoryId; onBack: () => void; onSelectItem: (item: any) => void }) {
   const config = CATEGORIES.find((c) => c.id === category)!;
 
   const renderItem = (item: any, index: number) => {
@@ -302,7 +326,7 @@ function ListView({ category, onBack, onSelectItem, prescriptions }: { category:
   const getData = () => {
     if (category === 'consultations') return MOCK_CONSULTATIONS;
     if (category === 'visits') return MOCK_VISITS;
-    if (category === 'prescriptions') return prescriptions;
+    if (category === 'prescriptions') return MOCK_PRESCRIPTIONS;
     if (category === 'diagnostics') return MOCK_DIAGNOSTICS;
     if (category === 'referrals') return MOCK_REFERRALS;
     return MOCK_APPOINTMENTS;
@@ -535,13 +559,10 @@ export default function History() {
 
   const { openNotifications } = useNotifications();
 
-  // Prescriptions come from the API; the other categories are still mock data.
-  const { prescriptions } = usePatientPrescriptions();
-
   const getCategoryCount = (id: CategoryId): number => {
     if (id === 'consultations') return MOCK_CONSULTATIONS.length;
     if (id === 'visits') return MOCK_VISITS.length;
-    if (id === 'prescriptions') return prescriptions.length;
+    if (id === 'prescriptions') return MOCK_PRESCRIPTIONS.length;
     if (id === 'diagnostics') return MOCK_DIAGNOSTICS.length;
     if (id === 'referrals') return MOCK_REFERRALS.length;
     return MOCK_APPOINTMENTS.length;
@@ -550,9 +571,7 @@ export default function History() {
   const getLatestPreview = (id: CategoryId): string => {
     if (id === 'consultations') return `Latest: ${MOCK_CONSULTATIONS[0].doctorName} • ${MOCK_CONSULTATIONS[0].specialty}`;
     if (id === 'visits') return `Latest: ${MOCK_VISITS[0].facility}`;
-    if (id === 'prescriptions') return prescriptions.length
-      ? `Latest: ${prescriptions[0].doctorName} • ${prescriptions[0].medicineCount} medicines`
-      : 'No prescriptions yet';
+    if (id === 'prescriptions') return `Latest: ${MOCK_PRESCRIPTIONS[0].doctorName} • ${MOCK_PRESCRIPTIONS[0].medicineCount} medicines`;
     if (id === 'diagnostics') return `Latest: ${MOCK_DIAGNOSTICS[0].testName}`;
     if (id === 'referrals') return `Latest: ${MOCK_REFERRALS[0].referredFacility}`;
     return `Latest: ${MOCK_APPOINTMENTS[0].doctor} • ${MOCK_APPOINTMENTS[0].date}`;
@@ -561,7 +580,7 @@ export default function History() {
   const getLatestDate = (id: CategoryId): string => {
     if (id === 'consultations') return MOCK_CONSULTATIONS[0].date;
     if (id === 'visits') return MOCK_VISITS[0].date;
-    if (id === 'prescriptions') return prescriptions[0]?.date ?? '—';
+    if (id === 'prescriptions') return MOCK_PRESCRIPTIONS[0].date;
     if (id === 'diagnostics') return MOCK_DIAGNOSTICS[0].date;
     if (id === 'referrals') return MOCK_REFERRALS[0].date;
     return MOCK_APPOINTMENTS[0].date;
@@ -579,7 +598,7 @@ export default function History() {
   if (selectedCategory) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'left', 'right']}>
-        <ListView category={selectedCategory} onBack={() => setSelectedCategory(null)} onSelectItem={setSelectedItem} prescriptions={prescriptions} />
+        <ListView category={selectedCategory} onBack={() => setSelectedCategory(null)} onSelectItem={setSelectedItem} />
       </SafeAreaView>
     );
   }

@@ -1,16 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Modal } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { createPrescription } from '@/lib/prescriptions';
 
 const COLORS = { ink: '#10233F', muted: '#728197', blue: '#246BFD', blueSoft: '#EEF4FF', mint: '#E9FAF4', mintText: '#12956A', canvas: '#F6F8FC', card: '#FFFFFF', line: '#E4EAF2', red: '#E5484D' };
 type Medicine = { id: number; name: string; dose: string; timing: string; duration: string };
 const emptyMedicine = (id: number): Medicine => ({ id, name: '', dose: '', timing: 'After food', duration: '5 days' });
 
 export default function DoctorWorkspace() {
-  const params = useLocalSearchParams<{ patientName?: string; patientAge?: string; patientId?: string }>();
+  const params = useLocalSearchParams<{ patientName?: string; patientAge?: string }>();
   const router = useRouter();
   const closeModal = () => router.canGoBack() ? router.back() : router.replace('/(tabs2)/home' as any);
 
@@ -25,20 +24,18 @@ export default function DoctorWorkspace() {
               <Ionicons name="close" size={24} color={COLORS.ink} />
             </Pressable>
           </View>
-          <NewPrescription onClose={closeModal} patientName={params.patientName} patientAge={params.patientAge} patientId={params.patientId} />
+          <NewPrescription onClose={closeModal} patientName={params.patientName} patientAge={params.patientAge} />
         </SafeAreaView>
       </View>
     </Modal>
   );
 }
 
-function NewPrescription({ onClose, patientName, patientAge, patientId }: { onClose: () => void; patientName?: string; patientAge?: string; patientId?: string }) {
+function NewPrescription({ onClose, patientName, patientAge }: { onClose: () => void; patientName?: string; patientAge?: string }) {
   const [medicines, setMedicines] = useState<Medicine[]>([emptyMedicine(1)]);
   const [nextMedicineId, setNextMedicineId] = useState(2);
   const [name, setName] = useState(patientName ?? '');
   const [age, setAge] = useState(patientAge ?? '');
-  const [clinicalNote, setClinicalNote] = useState('');
-  const [saving, setSaving] = useState(false);
   useEffect(() => { setName(patientName ?? ''); setAge(patientAge ?? ''); }, [patientName, patientAge]);
   const updateMedicine = (id: number, field: keyof Omit<Medicine, 'id'>, value: string) => setMedicines(current => current.map(medicine => medicine.id === id ? { ...medicine, [field]: value } : medicine));
   const addMedicine = () => { setMedicines(current => [...current, emptyMedicine(nextMedicineId)]); setNextMedicineId(current => current + 1); };
@@ -46,44 +43,9 @@ function NewPrescription({ onClose, patientName, patientAge, patientId }: { onCl
     if (medicines.length === 1) { setMedicines([emptyMedicine(nextMedicineId)]); setNextMedicineId(current => current + 1); return; }
     setMedicines(current => current.filter(medicine => medicine.id !== id));
   };
-  const issuePrescription = async () => {
-    // Without a real patient_profiles.id there is nobody to write this against.
-    // Reaching this screen from Appointments carries the id; the mock patient
-    // list in History does not.
-    if (!patientId) {
-      Alert.alert(
-        'Pick the patient first',
-        'Open this patient from your Appointments list to prescribe — that is what links the prescription to their record.'
-      );
-      return;
-    }
-
-    const filled = medicines.filter(medicine => medicine.name.trim());
-    if (filled.length === 0) {
-      Alert.alert('Add a medicine', 'A prescription needs at least one medicine.');
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await createPrescription({
-        patientId,
-        clinicalNote: clinicalNote.trim() || undefined,
-        items: filled.map(medicine => ({
-          name: medicine.name.trim(),
-          dosage: medicine.dose.trim() || undefined,
-          frequency: medicine.timing.trim() || undefined,
-          duration: medicine.duration.trim() || undefined,
-        })),
-      });
-
-      Alert.alert('Prescription issued', `Sent to ${name || 'the patient'}. They can now forward it to a pharmacy.`);
-      onClose();
-    } catch (error: any) {
-      Alert.alert('Could not issue prescription', error?.message ?? 'Please try again.');
-    } finally {
-      setSaving(false);
-    }
+  const issuePrescription = () => {
+    Alert.alert('Prescription ready', 'The care plan has been finalized and is ready to share with the patient.');
+    onClose();
   };
 
   return (
@@ -99,7 +61,7 @@ function NewPrescription({ onClose, patientName, patientAge, patientId }: { onCl
         </View>
       </View>
       <SectionHeader icon="pulse-outline" title="Clinical note" caption="Capture the diagnosis and observations" optional />
-      <View style={styles.card}><TextInput value={clinicalNote} onChangeText={setClinicalNote} style={styles.noteInput} multiline placeholder="Symptoms, diagnosis, observations or care instructions…" placeholderTextColor={COLORS.muted} textAlignVertical="top" /></View>
+      <View style={styles.card}><TextInput style={styles.noteInput} multiline placeholder="Symptoms, diagnosis, observations or care instructions…" placeholderTextColor={COLORS.muted} textAlignVertical="top" /></View>
       <View style={styles.prescriptionHeading}><SectionHeader icon="document-text-outline" title="Digital prescription" caption="Add medication for this care plan" /><View style={styles.rxPill}><Text style={styles.rxPillText}>Rx</Text></View></View>
       {medicines.map((medicine, index) => (
         <View style={styles.medicineCard} key={medicine.id}>
@@ -111,7 +73,7 @@ function NewPrescription({ onClose, patientName, patientAge, patientId }: { onCl
       ))}
       <Pressable onPress={addMedicine} style={styles.addMedicine}><View style={styles.addIcon}><Ionicons name="add" size={18} color={COLORS.blue} /></View><Text style={styles.addText}>Add another medicine</Text></Pressable>
       <View style={styles.safetyNote}><Ionicons name="shield-checkmark-outline" size={18} color={COLORS.mintText} /><Text style={styles.safetyText}>Review allergies and interactions before issuing the prescription.</Text></View>
-      <FooterButton icon="document-text" label={saving ? 'Issuing…' : 'Generate prescription'} onPress={issuePrescription} busy={saving} />
+      <FooterButton icon="document-text" label="Generate prescription" onPress={issuePrescription} />
     </ScrollView>
   );
 }
@@ -122,8 +84,8 @@ function SectionHeader({ icon, title, caption, optional = false }: { icon: React
 function LabeledInput({ label, icon, ...props }: { label: string; icon?: React.ComponentProps<typeof Ionicons>['name'] } & React.ComponentProps<typeof TextInput>) {
   return <View style={styles.inputGroup}><Text style={styles.inputLabel}>{label}</Text><View style={styles.inputRow}><TextInput style={styles.fieldInput} placeholderTextColor={COLORS.muted} {...props} />{icon && <Ionicons name={icon} size={17} color={COLORS.muted} />}</View></View>;
 }
-function FooterButton({ icon, label, onPress, busy = false }: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; onPress: () => void; busy?: boolean }) {
-  return <Pressable style={[styles.primaryAction, busy && styles.primaryActionBusy]} onPress={onPress} disabled={busy}>{busy ? <ActivityIndicator size="small" color="#FFFFFF" /> : <Ionicons name={icon} size={18} color="#FFFFFF" />}<Text style={styles.primaryActionText}>{label}</Text></Pressable>;
+function FooterButton({ icon, label, onPress }: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; onPress: () => void }) {
+  return <Pressable style={styles.primaryAction} onPress={onPress}><Ionicons name={icon} size={18} color="#FFFFFF" /><Text style={styles.primaryActionText}>{label}</Text></Pressable>;
 }
 
 const styles = StyleSheet.create({
@@ -141,5 +103,5 @@ const styles = StyleSheet.create({
   medicineCard: { backgroundColor: COLORS.card, borderRadius: 16, borderWidth: 1, borderColor: COLORS.line, marginBottom: 10, padding: 13 }, medicineHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 11 }, medicineNumber: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.blueSoft }, medicineNumberText: { color: COLORS.blue, fontSize: 11, fontWeight: '800' }, medicineTitle: { flex: 1, marginLeft: 8, fontSize: 13, color: COLORS.ink, fontWeight: '800' }, removeButton: { padding: 4 }, fullInput: { height: 42, borderRadius: 10, backgroundColor: COLORS.canvas, paddingHorizontal: 11, fontSize: 13, color: COLORS.ink }, medicineFields: { flexDirection: 'row', gap: 8, marginTop: 8 }, smallInput: { flex: 1, height: 40, borderRadius: 10, backgroundColor: COLORS.canvas, paddingHorizontal: 11, fontSize: 12, color: COLORS.ink }, selectInput: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, selectText: { fontSize: 12, color: COLORS.ink }, durationRow: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 10 }, durationText: { fontSize: 11, color: COLORS.muted },
   addMedicine: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, height: 48, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: '#9AB9FC', backgroundColor: '#F9FBFF', marginBottom: 16 }, addIcon: { width: 23, height: 23, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.blueSoft }, addText: { color: COLORS.blue, fontSize: 13, fontWeight: '800' },
   safetyNote: { flexDirection: 'row', gap: 9, marginBottom: 16, padding: 12, borderRadius: 12, backgroundColor: COLORS.mint }, safetyText: { flex: 1, color: '#27765D', fontSize: 11, lineHeight: 16 },
-  primaryAction: { height: 48, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.blue }, primaryActionBusy: { opacity: 0.7 }, primaryActionText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  primaryAction: { height: 48, borderRadius: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: COLORS.blue }, primaryActionText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
 });

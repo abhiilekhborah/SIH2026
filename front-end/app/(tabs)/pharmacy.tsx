@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { AppHeader } from '@/components/app-header';
 import { useSideMenu } from '@/components/side-menu-context';
 import { useNotifications } from '@/components/notification-context';
-import { SendPrescriptionModal } from '@/components/send-prescription-modal';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MQ } from '@/constants/theme';
 
@@ -67,7 +66,6 @@ export default function PharmacyScreen() {
   
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showOrderModal, setShowOrderModal] = useState(false);
-  const [showSendPrescription, setShowSendPrescription] = useState(false);
   const [medicineText, setMedicineText] = useState('');
   const [requestedMedicines, setRequestedMedicines] = useState<RequestedMed[]>([]);
 
@@ -247,11 +245,7 @@ export default function PharmacyScreen() {
       >
         <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setShowOrderModal(false)}>
           <TouchableOpacity style={styles.modalBox} activeOpacity={1}>
-            <TouchableOpacity
-              style={styles.sendPrescriptionBtn}
-              activeOpacity={0.8}
-              onPress={() => { setShowOrderModal(false); setShowSendPrescription(true); }}
-            >
+            <TouchableOpacity style={styles.sendPrescriptionBtn} activeOpacity={0.8}>
               <Ionicons name="document-text-outline" size={24} color={MQ.teal} />
               <Text style={styles.sendPrescriptionText}>SEND PRESCRIPTION</Text>
             </TouchableOpacity>
@@ -269,11 +263,6 @@ export default function PharmacyScreen() {
           </TouchableOpacity>
         </TouchableOpacity>
       </Modal>
-
-      <SendPrescriptionModal
-        visible={showSendPrescription}
-        onClose={() => setShowSendPrescription(false)}
-      />
     </SafeAreaView>
   );
 }
