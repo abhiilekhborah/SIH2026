@@ -45,16 +45,13 @@ export function usePatientPrescriptions() {
     const base = process.env.EXPO_PUBLIC_API_URL ?? '(unset -> localhost:3000)';
     console.log('[usePatientPrescriptions] GET', `${base}/api/v1/prescriptions/patient/mine`);
     try {
+      console.log('[usePatientPrescriptions] fetching from API…');
       const rows = await fetchPatientPrescriptions();
-      console.log(`[usePatientPrescriptions] OK - ${rows.length} prescription(s)`);
+      console.log('[usePatientPrescriptions] got', rows.length, 'prescriptions', JSON.stringify(rows.map(r => ({ id: r.id, status: r.status, doctorName: r.doctorName }))));
       setPrescriptions(rows.map(toPatientPrescription));
       setError(null);
     } catch (err: any) {
-      // ApiError carries the HTTP status, which is what tells the causes apart:
-      // 0 = never reached the server, 401 = no/!bad token, 403 = no patient
-      // profile for this user, 404 = wrong URL (a trailing slash does this).
-      const status = err instanceof ApiError ? err.status : '(not an ApiError)';
-      console.log(`[usePatientPrescriptions] FAILED status=${status} message=${err?.message}`);
+      console.warn('[usePatientPrescriptions] ERROR:', err?.status, err?.message);
       setError(err?.message ?? 'Could not load prescriptions');
       setPrescriptions([]);
     } finally {
