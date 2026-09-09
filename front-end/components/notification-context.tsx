@@ -1,87 +1,13 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { NotificationPanel, NotificationSection, NotificationItem } from './notification-panel';
-
-const INITIAL_SECTIONS: NotificationSection[] = [
-  {
-    label: 'Today',
-    data: [
-      {
-        id: '1',
-        icon: 'heart-outline',
-        iconColor: '#EF4444',
-        title: 'New Appointment Confirmed',
-        description: 'Your appointment with Dr. Sarah Johnson has been confirmed for tomorrow at 10:00 AM.',
-        time: '2m ago',
-      },
-      {
-        id: '2',
-        icon: 'medkit-outline',
-        iconColor: '#1A66E8',
-        title: 'Prescription Ready',
-        description: 'Your prescription for Amoxicillin is ready for pickup at City Pharmacy.',
-        time: '1h ago',
-      },
-      {
-        id: '3',
-        icon: 'chatbubble-outline',
-        iconColor: '#16A34A',
-        title: 'New Message from Dr. Lee',
-        description: 'Dr. Lee sent you a message regarding your recent lab results.',
-        time: '3h ago',
-      },
-    ],
-  },
-  {
-    label: 'Yesterday',
-    data: [
-      {
-        id: '4',
-        icon: 'document-text-outline',
-        iconColor: '#9333EA',
-        title: 'Lab Results Available',
-        description: 'Your blood test results from HealthLab are now available to view.',
-        time: '1d ago',
-      },
-      {
-        id: '5',
-        icon: 'notifications-outline',
-        iconColor: '#F59E0B',
-        title: 'Appointment Reminder',
-        description: 'You have a checkup scheduled with Dr. Patel in 2 days.',
-        time: '1d ago',
-      },
-    ],
-  },
-  {
-    label: 'A week ago',
-    data: [
-      {
-        id: '6',
-        icon: 'star-outline',
-        iconColor: '#F59E0B',
-        title: 'Rate Your Visit',
-        description: 'How was your experience with City Hospital? Leave a review to help others.',
-        time: '5d ago',
-      },
-      {
-        id: '7',
-        icon: 'card-outline',
-        iconColor: '#1A66E8',
-        title: 'Payment Processed',
-        description: 'Your payment of $45.00 for consultation has been processed successfully.',
-        time: '6d ago',
-      },
-      {
-        id: '8',
-        icon: 'people-outline',
-        iconColor: '#16A34A',
-        title: 'Referral Reward',
-        description: 'You earned 500 health points for referring a friend to MediQuick.',
-        time: '7d ago',
-      },
-    ],
-  },
-];
+import {
+  fetchNotifications,
+  markAllNotificationsRead,
+  notificationKindToType,
+  relativeTime,
+  sectionLabel,
+  type ApiNotification,
+} from '@/lib/notifications';
 
 /**
  * Maps a push notification "type" (from the backend data payload)
@@ -98,6 +24,53 @@ const NOTIFICATION_TYPE_MAP: Record<string, { icon: string; iconColor: string }>
   default: { icon: 'notifications-outline', iconColor: '#00B5AD' },
 };
 
+/**
+ * Turns API rows into the panel's Today / Yesterday / A week ago sections,
+ * preserving the newest-first order the server returned.
+ */
+function groupNotifications(rows: ApiNotification[]): NotificationSection[] {
+  const sections: NotificationSection[] = [];
+
+  for (const row of rows) {
+    const label = sectionLabel(row.createdAt);
+    const { icon, iconColor } = getNotificationIcon(
+      notificationKindToType(row.payload?.kind)
+    );
+
+    const item: NotificationItem = {
+      id: row.id,
+      icon,
+      iconColor,
+      title: notificationTitle(row),
+      description: row.message ?? '',
+      time: relativeTime(row.createdAt),
+    };
+
+    const section = sections.find((s) => s.label === label);
+    if (section) section.data.push(item);
+    else sections.push({ label, data: [item] });
+  }
+
+  return sections;
+}
+
+function notificationTitle(row: ApiNotification): string {
+  switch (row.payload?.kind) {
+    case 'prescription_issued':
+      return 'New Prescription';
+    case 'pharmacy_order_received':
+      return 'New Prescription Order';
+    case 'pharmacy_order_status':
+      return row.payload?.status === 'ready'
+        ? 'Prescription Ready'
+        : 'Order Update';
+    case 'pharmacy_message':
+      return 'Message from Pharmacy';
+    default:
+      return 'Notification';
+  }
+}
+
 type NotificationContextType = {
   openNotifications: () => void;
   /** Add a real push notification to the "Today" section of the panel */
@@ -108,6 +81,8 @@ type NotificationContextType = {
   setExpoPushToken: (token: string | null) => void;
   /** Unread notification count */
   unreadCount: number;
+  /** Re-fetch from the server. */
+  refreshNotifications: () => Promise<void>;
 };
 
 const NotificationContext = createContext<NotificationContextType>({
@@ -116,6 +91,7 @@ const NotificationContext = createContext<NotificationContextType>({
   expoPushToken: null,
   setExpoPushToken: () => {},
   unreadCount: 0,
+  refreshNotifications: async () => {},
 });
 
 export function useNotifications() {
@@ -131,14 +107,32 @@ export function getNotificationIcon(type?: string) {
 
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
   const [visible, setVisible] = useState(false);
-  const [sections, setSections] = useState(INITIAL_SECTIONS);
+  const [sections, setSections] = useState<NotificationSection[]>([]);
   const [expoPushToken, setExpoPushToken] = useState<string | null>(null);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  const refresh = useCallback(async () => {
+    try {
+      const { notifications, unreadCount: unread } = await fetchNotifications({ limit: 50 });
+      setSections(groupNotifications(notifications));
+      setUnreadCount(unread);
+    } catch {
+      // A notification panel is not worth an error state — leave what we have.
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
   const openNotifications = useCallback(() => {
     setVisible(true);
-    setUnreadCount(0); // Mark as read when panel is opened
-  }, []);
+    refresh();
+
+    // Opening the panel is what counts as reading them.
+    setUnreadCount(0);
+    markAllNotificationsRead().catch(() => {});
+  }, [refresh]);
   const closeNotifications = useCallback(() => setVisible(false), []);
 
   /**
@@ -183,6 +177,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         expoPushToken,
         setExpoPushToken,
         unreadCount,
+        refreshNotifications: refresh,
       }}
     >
       {children}

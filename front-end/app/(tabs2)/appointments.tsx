@@ -9,6 +9,8 @@ type Priority = 'low' | 'moderate' | 'high';
 type AppointmentStatus = 'pending' | 'accepted' | 'completed' | 'rescheduled' | 'rejected';
 type Appointment = {
   id: string;
+  /** patient_profiles.id — needed to issue a prescription against this patient. */
+  patientId?: string;
   patientName: string;
   age: number;
   time: string;
@@ -100,6 +102,7 @@ export default function Appointments() {
 
             return {
               id: r.id,
+              patientId: r.patient?.id,
               patientName: r.patient?.name || 'Patient',
               age: r.patient?.age || (r.patient?.blood_group ? 28 : 34),
               time: r.requested_time || '10:00 AM',
@@ -308,7 +311,11 @@ export default function Appointments() {
     setSelected(null);
     router.push({
       pathname: '/(tabs2)/new',
-      params: { patientName: item.patientName, patientAge: String(item.age) },
+      params: {
+        patientName: item.patientName,
+        patientAge: String(item.age),
+        ...(item.patientId && { patientId: item.patientId }),
+      },
     } as any);
   };
 

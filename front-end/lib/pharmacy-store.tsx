@@ -1,8 +1,17 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+
+import {
+  fetchPharmacyQueue,
+  notifyPatientAboutOrder,
+  updatePharmacyOrderStatus,
+  type PharmacyOrder,
+  type PharmacyOrderStatus,
+} from '@/lib/prescriptions';
 
 export type PrescriptionStatus = 'Pending' | 'Accepted' | 'Processing' | 'Ready' | 'Completed' | 'Rejected';
 
 export interface PrescribedMedicine {
+  /** pharmacy_order_items.id — what POST /pharmacy-orders/:id/dispense expects. */
   id: string;
   name: string;
   dosage: string;
@@ -15,7 +24,9 @@ export interface PrescribedMedicine {
 }
 
 export interface PrescriptionRequest {
+  /** pharmacy_orders.id */
   id: string;
+  prescriptionId?: string;
   rxNumber: string;
   patientName: string;
   patientAge: number;
@@ -85,216 +96,16 @@ export interface PharmacyStoreContextType {
   inventory: InventoryItem[];
   availabilityRequests: CustomerAvailabilityRequest[];
   alerts: StoreAlert[];
-  updatePrescriptionStatus: (id: string, newStatus: PrescriptionStatus, note?: string) => void;
+  prescriptionsLoading: boolean;
+  prescriptionsError: string | null;
+  refreshPrescriptions: () => Promise<void>;
+  updatePrescriptionStatus: (id: string, newStatus: PrescriptionStatus, note?: string) => Promise<void>;
   updateStock: (medicineId: string, deltaOrExact: number, isExact?: boolean, reason?: string) => void;
   addNewMedicine: (item: Omit<InventoryItem, 'id' | 'status'>) => void;
   respondToAvailabilityRequest: (requestId: string, status: AvailabilityStatus, pharmacistNote?: string) => void;
-  sendQuickResponse: (prescriptionId: string, replyText: string) => void;
+  sendQuickResponse: (prescriptionId: string, replyText: string) => Promise<void>;
   getMedicineStock: (medicineName: string) => number;
 }
-
-const initialPrescriptions: PrescriptionRequest[] = [
-  {
-    id: 'rx-1',
-    rxNumber: 'RX-9042',
-    patientName: 'Ramesh Chandra Sharma',
-    patientAge: 48,
-    patientGender: 'Male',
-    patientPhone: '+91 98765 43210',
-    doctorName: 'Dr. Alok Verma, MD',
-    doctorHospital: 'Apex Rural District Hospital',
-    date: '31 Aug 2026',
-    time: '14:35',
-    status: 'Pending',
-    priority: 'Urgent',
-    medicines: [
-      {
-        id: 'm1',
-        name: 'Paracetamol 650mg',
-        dosage: '650mg',
-        frequency: '1-0-1 (After Food)',
-        duration: '5 days',
-        quantity: 10,
-        availableStock: 444,
-        pricePerUnit: 3.5,
-        instructions: 'Take with warm water after lunch and dinner.',
-      },
-      {
-        id: 'm2',
-        name: 'Amoxicillin 500mg',
-        dosage: '500mg',
-        frequency: '1-0-1 (After Food)',
-        duration: '5 days',
-        quantity: 10,
-        availableStock: 18,
-        pricePerUnit: 12.0,
-        instructions: 'Complete full 5-day antibiotic course.',
-      },
-      {
-        id: 'm3',
-        name: 'Pantoprazole 40mg',
-        dosage: '40mg',
-        frequency: '1-0-0 (Empty Stomach)',
-        duration: '7 days',
-        quantity: 7,
-        availableStock: 120,
-        pricePerUnit: 8.5,
-        instructions: 'Take 30 mins before breakfast.',
-      },
-    ],
-    totalAmount: 214.5,
-    notes: 'Patient suffering from acute bacterial pharyngitis and fever.',
-  },
-  {
-    id: 'rx-2',
-    rxNumber: 'RX-9043',
-    patientName: 'Sunita Devi',
-    patientAge: 62,
-    patientGender: 'Female',
-    patientPhone: '+91 98231 11223',
-    doctorName: 'Dr. Priya Nair, MBBS, DNB',
-    doctorHospital: 'Community Health Centre',
-    date: '31 Aug 2026',
-    time: '14:10',
-    status: 'Accepted',
-    priority: 'Normal',
-    medicines: [
-      {
-        id: 'm4',
-        name: 'Metformin 500mg SR',
-        dosage: '500mg',
-        frequency: '1-0-1',
-        duration: '30 days',
-        quantity: 60,
-        availableStock: 250,
-        pricePerUnit: 4.2,
-        instructions: 'Twice daily with meals.',
-      },
-      {
-        id: 'm5',
-        name: 'Telmisartan 40mg',
-        dosage: '40mg',
-        frequency: '1-0-0',
-        duration: '30 days',
-        quantity: 30,
-        availableStock: 95,
-        pricePerUnit: 6.8,
-        instructions: 'Morning blood pressure management.',
-      },
-    ],
-    totalAmount: 456.0,
-    notes: 'Monthly chronic hypertension & diabetes refill.',
-  },
-  {
-    id: 'rx-3',
-    rxNumber: 'RX-9039',
-    patientName: 'Anil Kumar Patil',
-    patientAge: 35,
-    patientGender: 'Male',
-    patientPhone: '+91 97112 34567',
-    doctorName: 'Dr. Suresh Rao, MD (Cardio)',
-    doctorHospital: 'City General Clinic',
-    date: '31 Aug 2026',
-    time: '12:45',
-    status: 'Processing',
-    priority: 'Normal',
-    medicines: [
-      {
-        id: 'm6',
-        name: 'Azithromycin 500mg',
-        dosage: '500mg',
-        frequency: '1-0-0',
-        duration: '3 days',
-        quantity: 3,
-        availableStock: 45,
-        pricePerUnit: 22.0,
-        instructions: 'Single daily dose 1 hour before meal.',
-      },
-      {
-        id: 'm7',
-        name: 'Cetirizine 10mg',
-        dosage: '10mg',
-        frequency: '0-0-1',
-        duration: '5 days',
-        quantity: 5,
-        availableStock: 310,
-        pricePerUnit: 2.0,
-        instructions: 'Bedtime for allergy & rhinitis.',
-      },
-    ],
-    totalAmount: 76.0,
-    notes: 'Seasonal respiratory tract congestion.',
-  },
-  {
-    id: 'rx-4',
-    rxNumber: 'RX-9031',
-    patientName: 'Pooja Agarwal',
-    patientAge: 29,
-    patientGender: 'Female',
-    patientPhone: '+91 99887 76655',
-    doctorName: 'Dr. Neha Kapoor, DGO',
-    doctorHospital: 'Maternity Care Clinic',
-    date: '31 Aug 2026',
-    time: '11:20',
-    status: 'Ready',
-    priority: 'Normal',
-    medicines: [
-      {
-        id: 'm8',
-        name: 'Iron + Folic Acid Tablets',
-        dosage: '100mg/1.5mg',
-        frequency: '1-0-0',
-        duration: '30 days',
-        quantity: 30,
-        availableStock: 180,
-        pricePerUnit: 3.0,
-        instructions: 'Post breakfast with citrus juice.',
-      },
-      {
-        id: 'm9',
-        name: 'Calcium & Vitamin D3',
-        dosage: '500mg/250IU',
-        frequency: '0-1-0',
-        duration: '30 days',
-        quantity: 30,
-        availableStock: 140,
-        pricePerUnit: 5.5,
-        instructions: 'After lunch.',
-      },
-    ],
-    totalAmount: 255.0,
-    notes: 'Prenatal supplements packaged in airtight seal.',
-  },
-  {
-    id: 'rx-5',
-    rxNumber: 'RX-9018',
-    patientName: 'Vikram Singh',
-    patientAge: 54,
-    patientGender: 'Male',
-    patientPhone: '+91 94123 45678',
-    doctorName: 'Dr. Alok Verma, MD',
-    doctorHospital: 'Apex Rural District Hospital',
-    date: '30 Aug 2026',
-    time: '16:50',
-    status: 'Completed',
-    priority: 'Normal',
-    medicines: [
-      {
-        id: 'm10',
-        name: 'Atorvastatin 20mg',
-        dosage: '20mg',
-        frequency: '0-0-1',
-        duration: '30 days',
-        quantity: 30,
-        availableStock: 90,
-        pricePerUnit: 9.5,
-        instructions: 'Bedtime lipid management.',
-      },
-    ],
-    totalAmount: 285.0,
-    notes: 'Dispensed and picked up by patient relative.',
-  },
-];
 
 const initialInventory: InventoryItem[] = [
   {
@@ -498,13 +309,106 @@ function calculateStatus(stock: number, minThreshold: number, expiryDate: string
   return 'In Stock';
 }
 
+/**
+ * Turns a pharmacy order from the API into the shape the pharmacist screens
+ * already render.
+ */
+function toPrescriptionRequest(order: PharmacyOrder): PrescriptionRequest {
+  const requested = new Date(order.requestedAt);
+
+  const medicines: PrescribedMedicine[] = order.items.map(item => ({
+    id: item.id,
+    name: item.catalogueName ?? item.name,
+    dosage: item.dosage,
+    frequency: item.frequency,
+    duration: item.duration,
+    quantity: item.quantityRequested,
+    availableStock: item.availableStock ?? 0,
+    pricePerUnit: item.unitPrice ?? 0,
+    instructions: item.instructions ?? '',
+  }));
+
+  const totalAmount = medicines.reduce(
+    (sum, medicine) => sum + medicine.quantity * medicine.pricePerUnit,
+    0
+  );
+
+  return {
+    id: order.id,
+    prescriptionId: order.prescriptionId,
+    rxNumber: `RX-${order.prescriptionId.slice(0, 6).toUpperCase()}`,
+    patientName: order.patientName ?? 'Patient',
+    patientAge: ageFromDob(order.patientDob),
+    patientGender: toGender(order.patientGender),
+    patientPhone: order.patientPhone ?? '',
+    doctorName: order.doctorName ? `Dr. ${order.doctorName}` : 'Doctor',
+    doctorHospital: order.doctorSpecialization ?? 'MediQuick',
+    date: requested.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+    time: requested.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: false }),
+    status: toUiStatus(order.status),
+    // Anything still unanswered after a day needs chasing.
+    priority: order.status === 'pending' && Date.now() - requested.getTime() > 86_400_000
+      ? 'Urgent'
+      : 'Normal',
+    medicines,
+    totalAmount: Math.round(totalAmount * 100) / 100,
+    notes: order.pharmacistNotes ?? undefined,
+  };
+}
+
+/** 'pending' -> 'Pending'. The two vocabularies are otherwise identical. */
+function toUiStatus(status: PharmacyOrderStatus): PrescriptionStatus {
+  return (status.charAt(0).toUpperCase() + status.slice(1)) as PrescriptionStatus;
+}
+
+function ageFromDob(dob: string | null): number {
+  if (!dob) return 0;
+  const born = new Date(dob);
+  if (Number.isNaN(born.getTime())) return 0;
+
+  const now = new Date();
+  let age = now.getFullYear() - born.getFullYear();
+  const monthDelta = now.getMonth() - born.getMonth();
+  if (monthDelta < 0 || (monthDelta === 0 && now.getDate() < born.getDate())) age -= 1;
+
+  return Math.max(age, 0);
+}
+
+function toGender(gender: string | null): PrescriptionRequest['patientGender'] {
+  const value = gender?.toLowerCase();
+  if (value === 'male') return 'Male';
+  if (value === 'female') return 'Female';
+  return 'Other';
+}
+
 const PharmacyStoreContext = createContext<PharmacyStoreContextType | null>(null);
 
 export function PharmacyStoreProvider({ children }: { children: React.ReactNode }) {
-  const [prescriptions, setPrescriptions] = useState<PrescriptionRequest[]>(initialPrescriptions);
+  // The prescription queue is live: it is whatever patients have sent to this
+  // pharmacy. Inventory and availability requests are still local mock data.
+  const [prescriptions, setPrescriptions] = useState<PrescriptionRequest[]>([]);
+  const [prescriptionsLoading, setPrescriptionsLoading] = useState(true);
+  const [prescriptionsError, setPrescriptionsError] = useState<string | null>(null);
   const [inventory, setInventory] = useState<InventoryItem[]>(initialInventory);
   const [availabilityRequests, setAvailabilityRequests] = useState<CustomerAvailabilityRequest[]>(initialAvailabilityRequests);
   const [alerts, setAlerts] = useState<StoreAlert[]>([]);
+
+  const refreshPrescriptions = useCallback(async () => {
+    setPrescriptionsLoading(true);
+    try {
+      const orders = await fetchPharmacyQueue();
+      setPrescriptions(orders.map(toPrescriptionRequest));
+      setPrescriptionsError(null);
+    } catch (err: any) {
+      setPrescriptionsError(err?.message ?? 'Could not load the prescription queue');
+    } finally {
+      setPrescriptionsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshPrescriptions();
+  }, [refreshPrescriptions]);
 
   // Compute live alerts based on inventory & pending prescriptions
   useEffect(() => {
@@ -578,10 +482,27 @@ export function PharmacyStoreProvider({ children }: { children: React.ReactNode 
     setAlerts(generatedAlerts);
   }, [inventory, prescriptions]);
 
-  const updatePrescriptionStatus = (id: string, newStatus: PrescriptionStatus, note?: string) => {
+  const updatePrescriptionStatus = async (id: string, newStatus: PrescriptionStatus, note?: string) => {
+    const previous = prescriptions;
+
+    // Move the card immediately, then roll back if the server disagrees.
     setPrescriptions(prev =>
       prev.map(p => (p.id === id ? { ...p, status: newStatus, notes: note || p.notes } : p))
     );
+
+    try {
+      const updated = await updatePharmacyOrderStatus(
+        id,
+        newStatus.toLowerCase() as PharmacyOrderStatus,
+        note
+      );
+      setPrescriptions(prev =>
+        prev.map(p => (p.id === id ? { ...p, status: toUiStatus(updated.status) } : p))
+      );
+    } catch (err) {
+      setPrescriptions(previous);
+      throw err;
+    }
   };
 
   const updateStock = (medicineId: string, deltaOrExact: number, isExact = false, reason?: string) => {
@@ -617,7 +538,8 @@ export function PharmacyStoreProvider({ children }: { children: React.ReactNode 
     );
   };
 
-  const sendQuickResponse = (prescriptionId: string, replyText: string) => {
+  const sendQuickResponse = async (prescriptionId: string, replyText: string) => {
+    await notifyPatientAboutOrder(prescriptionId, replyText);
     setPrescriptions(prev =>
       prev.map(p => (p.id === prescriptionId ? { ...p, quickReplySent: replyText } : p))
     );
@@ -632,6 +554,9 @@ export function PharmacyStoreProvider({ children }: { children: React.ReactNode 
     <PharmacyStoreContext.Provider
       value={{
         prescriptions,
+        prescriptionsLoading,
+        prescriptionsError,
+        refreshPrescriptions,
         inventory,
         availabilityRequests,
         alerts,

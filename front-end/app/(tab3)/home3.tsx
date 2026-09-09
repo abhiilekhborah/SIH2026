@@ -163,10 +163,34 @@ export default function PharmacistHomeScreen() {
     }
   };
 
+  // Moves an order along and only claims success once the server agrees.
+  const changeStatus = async (
+    next: PrescriptionStatus,
+    successTitle: string,
+    successMessage: string
+  ) => {
+    if (!selectedRx) return;
+
+    try {
+      await updatePrescriptionStatus(selectedRx.id, next);
+      setSelectedRx(current => (current ? { ...current, status: next } : current));
+      Alert.alert(successTitle, successMessage);
+    } catch (error: any) {
+      Alert.alert('Could not update status', error?.message ?? 'Please try again.');
+    }
+  };
+
   // Handle Quick Text Send
-  const handleSendQuickReply = () => {
+  const handleSendQuickReply = async () => {
     if (!quickReplyRx) return;
-    sendQuickResponse(quickReplyRx.id, quickReplyText);
+
+    try {
+      await sendQuickResponse(quickReplyRx.id, quickReplyText);
+    } catch (error: any) {
+      Alert.alert('Message not sent', error?.message ?? 'Please try again.');
+      return;
+    }
+
     const newNotif: PatientNotification = {
       id: `pn-${Date.now()}`,
       patientName: quickReplyRx.patientName,
@@ -844,12 +868,7 @@ export default function PharmacistHomeScreen() {
               <View style={styles.statusActionGrid}>
                 <TouchableOpacity
                   style={[styles.statusBtn, styles.statusBtnAccept]}
-                  onPress={() => {
-                    if (!selectedRx) return;
-                    updatePrescriptionStatus(selectedRx.id, 'Accepted');
-                    setSelectedRx({ ...selectedRx, status: 'Accepted' });
-                    Alert.alert('Status Updated', 'Prescription marked as Accepted.');
-                  }}
+                  onPress={() => changeStatus('Accepted', 'Status Updated', 'Prescription marked as Accepted.')}
                 >
                   <Ionicons name="checkmark-done" size={16} color="#FFFFFF" />
                   <Text style={styles.statusBtnTextWhite}>Accept Order</Text>
@@ -857,12 +876,7 @@ export default function PharmacistHomeScreen() {
 
                 <TouchableOpacity
                   style={[styles.statusBtn, styles.statusBtnProcess]}
-                  onPress={() => {
-                    if (!selectedRx) return;
-                    updatePrescriptionStatus(selectedRx.id, 'Processing');
-                    setSelectedRx({ ...selectedRx, status: 'Processing' });
-                    Alert.alert('Status Updated', 'Prescription packaging in progress.');
-                  }}
+                  onPress={() => changeStatus('Processing', 'Status Updated', 'Prescription packaging in progress.')}
                 >
                   <Ionicons name="cube" size={16} color="#FFFFFF" />
                   <Text style={styles.statusBtnTextWhite}>Processing</Text>
@@ -870,12 +884,7 @@ export default function PharmacistHomeScreen() {
 
                 <TouchableOpacity
                   style={[styles.statusBtn, styles.statusBtnReady]}
-                  onPress={() => {
-                    if (!selectedRx) return;
-                    updatePrescriptionStatus(selectedRx.id, 'Ready');
-                    setSelectedRx({ ...selectedRx, status: 'Ready' });
-                    Alert.alert('Ready for Pickup', 'Patient alerted to collect package.');
-                  }}
+                  onPress={() => changeStatus('Ready', 'Ready for Pickup', 'Patient alerted to collect package.')}
                 >
                   <Ionicons name="bag-check" size={16} color="#FFFFFF" />
                   <Text style={styles.statusBtnTextWhite}>Ready for Pickup</Text>
