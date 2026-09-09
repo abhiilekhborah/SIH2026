@@ -39,23 +39,10 @@ const key = (date: Date) => `${date.getFullYear()}-${String(date.getMonth() + 1)
 const today = new Date();
 today.setHours(0, 0, 0, 0);
 
-const initial: Appointment[] = [
-  ['Riya Sharma', 34, '09:00 AM', 'In-clinic', 'pending'],
-  ['Arjun Mehta', 52, '09:30 AM', 'In-clinic', 'pending'],
-  ['Priya Das', 28, '10:15 AM', 'Video', 'accepted'],
-  ['Suresh Kumar', 61, '11:00 AM', 'In-clinic', 'accepted'],
-  ['Ananya Bose', 19, '11:30 AM', 'Video', 'completed'],
-].map(([patientName, age, time, visit, status], index) => ({
-  id: String(index + 1),
-  patientName: patientName as string,
-  age: age as number,
-  time: time as string,
-  visit: visit as Appointment['visit'],
-  dateKey: key(today),
-  status: status as AppointmentStatus,
-  done: status === 'completed',
-  priority: 'moderate',
-}));
+// No mock roster. Two of the placeholders were `status: 'accepted'` dated
+// today, which pinned the Upcoming tab to today's date and hid real accepted
+// requests for any other day — and none of them carried a patientId, so
+// tapping one could never open the prescription form.
 
 const formatDate = (dateKey: string) =>
   new Date(`${dateKey}T00:00:00`).toLocaleDateString('en-IN', {
@@ -77,9 +64,11 @@ const sheetReschedule = {
 
 export default function Appointments() {
   const router = useRouter();
-  const [appointments, setAppointments] = useState(initial);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [tab, setTab] = useState<TabType>('requests');
-  const [selectedDate, setSelectedDate] = useState(key(today));
+  // null = show every date. Only set when the doctor picks a day, so an
+  // accepted appointment can never be filtered out by a date nobody chose.
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [calendarOpen, setCalendarOpen] = useState(false);
   const [calendarMonth, setCalendarMonth] = useState(new Date(today));
   const [selected, setSelected] = useState<Appointment | null>(null);
@@ -122,11 +111,7 @@ export default function Appointments() {
             };
           });
 
-          setAppointments(prev => {
-            const existingIds = new Set(mapped.map(m => m.id));
-            const remainingInitial = initial.filter(i => !existingIds.has(i.id));
-            return [...mapped, ...remainingInitial];
-          });
+          setAppointments(mapped);
         }
       } catch (err) {
         console.warn('[Doctor Appointments] load error:', err);
@@ -174,20 +159,15 @@ export default function Appointments() {
   );
 
   const dayAppointments = useMemo(() => {
+    const matchesDate = (item: Appointment) =>
+      selectedDate === null || item.dateKey === selectedDate;
+
     return appointments.filter(item => {
-      if (tab === 'requests') {
-        return isRequest(item);
-      }
-      if (tab === 'upcoming') {
-        const hasDateAppointments = appointments.some(
-          a => isUpcoming(a) && a.dateKey === selectedDate
-        );
-        return isUpcoming(item) && (hasDateAppointments ? item.dateKey === selectedDate : true);
-      }
-      const hasDateDone = appointments.some(
-        a => isDone(a) && a.dateKey === selectedDate
-      );
-      return isDone(item) && (hasDateDone ? item.dateKey === selectedDate : true);
+      // Requests are never date-filtered — a request you have not answered
+      // matters whatever day it is for.
+      if (tab === 'requests') return isRequest(item);
+      if (tab === 'upcoming') return isUpcoming(item) && matchesDate(item);
+      return isDone(item) && matchesDate(item);
     });
   }, [appointments, selectedDate, tab]);
 
@@ -349,11 +329,20 @@ export default function Appointments() {
       <View style={s.header}>
         <View>
           <Text style={s.title}>Appointments</Text>
-          <Text style={s.subtitle}>{formatDate(selectedDate)}</Text>
+          <Text style={s.subtitle}>
+            {selectedDate ? formatDate(selectedDate) : 'All dates'}
+          </Text>
         </View>
-        <Pressable style={s.calendarButton} onPress={() => setCalendarOpen(true)}>
-          <Ionicons name="calendar-outline" size={21} color={C.blue} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {selectedDate !== null && (
+            <Pressable style={s.calendarButton} onPress={() => setSelectedDate(null)}>
+              <Ionicons name="close" size={19} color={C.blue} />
+            </Pressable>
+          )}
+          <Pressable style={s.calendarButton} onPress={() => setCalendarOpen(true)}>
+            <Ionicons name="calendar-outline" size={21} color={C.blue} />
+          </Pressable>
+        </View>
       </View>
 
       <View style={s.tabs}>
@@ -392,15 +381,16 @@ export default function Appointments() {
               tab={tab}
               onPress={() => setSelected(item)}
               onPrescribe={() => prescribe(item)}
-              selectedDate={selectedDate}
+              selectedDate={selectedDate ?? undefined}
             />
           ))
         )}
       </ScrollView>
 
       <Modal visible={calendarOpen} transparent animationType="fade" onRequestClose={() => setCalendarOpen(false)}>
+        {/* No filter set: open the calendar on today rather than nowhere. */}
         <CalendarPicker
-          value={selectedDate}
+          value={selectedDate ?? key(today)}
           month={calendarMonth}
           onMonthChange={setCalendarMonth}
           onSelect={date => {
