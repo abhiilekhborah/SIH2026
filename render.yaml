@@ -1,0 +1,34 @@
+# NOTE: the prescription API is deployed from its own repository —
+# https://github.com/RICK-458/prescription-microservice — which is the
+# canonical source. This blueprint is kept so the service can still be built
+# from the monorepo, but deploying both creates two competing services.
+#
+# Render blueprint for the MediQuick core API (back-end/database).
+#
+# Render injects PORT itself and src/index.js already reads it, so PORT is
+# deliberately NOT set here — hardcoding it would break the health check.
+#
+# DATABASE_URL must be the Supabase **pooler** connection string, not the
+# direct one. db.<ref>.supabase.co resolves to IPv6 only, and Render has no
+# outbound IPv6, so the direct URL builds fine and then fails every query
+# with ENETUNREACH. Take the "Session pooler" URI from
+# Supabase -> Connect, and percent-encode any @ in the password as %40.
+services:
+  - type: web
+    name: mediquick-api
+    runtime: node
+    plan: free
+    rootDir: back-end/database
+    buildCommand: npm install
+    startCommand: npm start
+    # Public route that touches the database, so a green health check means
+    # the pooler connection actually works.
+    healthCheckPath: /api/v1/pharmacies
+    envVars:
+      - key: NODE_VERSION
+        value: "20"
+      # Both set in the Render dashboard, never committed.
+      - key: DATABASE_URL
+        sync: false
+      - key: CLERK_SECRET_KEY
+        sync: false
