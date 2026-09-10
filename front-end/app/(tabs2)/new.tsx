@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Modal } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { createPrescription } from '@/lib/prescriptions';
 
 const COLORS = { ink: '#10233F', muted: '#728197', blue: '#246BFD', blueSoft: '#EEF4FF', mint: '#E9FAF4', mintText: '#12956A', canvas: '#F6F8FC', card: '#FFFFFF', line: '#E4EAF2', red: '#E5484D' };
@@ -12,10 +12,30 @@ const emptyMedicine = (id: number): Medicine => ({ id, name: '', dose: '', timin
 export default function DoctorWorkspace() {
   const params = useLocalSearchParams<{ patientName?: string; patientAge?: string; patientId?: string }>();
   const router = useRouter();
-  const closeModal = () => router.canGoBack() ? router.back() : router.replace('/(tabs2)/home' as any);
+
+  // `new` is a tab screen, and tab navigators keep visited screens mounted. The
+  // modal used to be hardcoded `visible`, so navigating away left it rendering
+  // on top of wherever you landed — the close button looked dead. Drive it from
+  // state instead, and show it again whenever the tab regains focus.
+  const [visible, setVisible] = useState(true);
+
+  useFocusEffect(
+    useCallback(() => {
+      setVisible(true);
+    }, [])
+  );
+
+  const closeModal = () => {
+    setVisible(false);
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs2)/home' as any);
+    }
+  };
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={closeModal}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={closeModal}>
       <View style={styles.modalOverlay}>
         <Pressable style={styles.modalBackdrop} onPress={closeModal} />
         <SafeAreaView style={styles.prescriptionModal} edges={['left', 'right']}>
